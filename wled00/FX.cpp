@@ -6123,13 +6123,14 @@ uint16_t mode_2Dscrollingtext(void) {
 
   unsigned letterWidth, rotLW;
   unsigned letterHeight, rotLH;
-  switch (map(SEGMENT.custom2, 0, 255, 1, 5)) {
+  switch (map(SEGMENT.custom2, 0, 255, 1, 6)) {
     default:
     case 1: letterWidth = 4; letterHeight =  6; break;
-    case 2: letterWidth = 5; letterHeight =  8; break;
-    case 3: letterWidth = 6; letterHeight =  8; break;
-    case 4: letterWidth = 7; letterHeight =  9; break;
-    case 5: letterWidth = 5; letterHeight = 12; break;
+    case 2: letterWidth = 4; letterHeight =  7; break;
+    case 3: letterWidth = 5; letterHeight =  8; break;
+    case 4: letterWidth = 6; letterHeight =  8; break;
+    case 5: letterWidth = 7; letterHeight =  9; break;
+    case 6: letterWidth = 5; letterHeight = 12; break;
   }
   // letters are rotated
   const int8_t rotate = map(SEGMENT.custom3, 0, 31, -2, 2);
@@ -6213,6 +6214,11 @@ uint16_t mode_2Dscrollingtext(void) {
   }
 
   const int  numberOfLetters = strlen(text);
+  int width = 0;
+  for (int i = 0; i < numberOfLetters; i++) {
+    width += 1 + SEGMENT.drawCharacter(text[i], xoffset, yoffset, letterWidth, letterHeight, col1, col2, rotate);
+  }
+
   int width = (numberOfLetters * rotLW);
   int yoffset = map(SEGMENT.intensity, 0, 255, -rows/2, rows/2) + (rows-rotLH)/2;
   if (width <= cols) {
@@ -6251,10 +6257,10 @@ uint16_t mode_2Dscrollingtext(void) {
     }
   } else col2 = col1; // force characters to use single color (from palette)
 
+  int xoffset = int(cols) - int(SEGENV.aux0);
   for (int i = 0; i < numberOfLetters; i++) {
-    int xoffset = int(cols) - int(SEGENV.aux0) + rotLW*i;
     if (xoffset + rotLW < 0) continue; // don't draw characters off-screen
-    SEGMENT.drawCharacter(text[i], xoffset, yoffset, letterWidth, letterHeight, col1, col2, rotate);
+    xoffset += 1 + SEGMENT.drawCharacter(text[i], xoffset, yoffset, letterWidth, letterHeight, col1, col2, rotate);
   }
 
   return FRAMETIME;
