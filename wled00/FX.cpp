@@ -6216,10 +6216,11 @@ uint16_t mode_2Dscrollingtext(void) {
   const int  numberOfLetters = strlen(text);
   int width = 0;
   for (int i = 0; i < numberOfLetters; i++) {
-    width += 1 + SEGMENT.drawCharacter(text[i], xoffset, yoffset, letterWidth, letterHeight, col1, col2, rotate);
+    width += 1 + SEGMENT.getCharacterWidth(text[i], letterWidth, letterHeight);
   }
+  width--; // Substract the last empty pixel
 
-  int width = (numberOfLetters * rotLW);
+  //int width = (numberOfLetters * rotLW);
   int yoffset = map(SEGMENT.intensity, 0, 255, -rows/2, rows/2) + (rows-rotLH)/2;
   if (width <= cols) {
     // scroll vertically (e.g. ^^ Way out ^^) if it fits
@@ -6258,6 +6259,8 @@ uint16_t mode_2Dscrollingtext(void) {
   } else col2 = col1; // force characters to use single color (from palette)
 
   int xoffset = int(cols) - int(SEGENV.aux0);
+  DEBUG_PRINTF_P(PSTR("Text: %s, Width: %d, Offset: %d, Cols: %d\n"), text, width, xoffset, cols);
+
   for (int i = 0; i < numberOfLetters; i++) {
     if (xoffset + rotLW < 0) continue; // don't draw characters off-screen
     xoffset += 1 + SEGMENT.drawCharacter(text[i], xoffset, yoffset, letterWidth, letterHeight, col1, col2, rotate);
