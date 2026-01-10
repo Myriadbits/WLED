@@ -1,0 +1,5 @@
+{
+  "name:": "wordcloxel",
+  "build": { "libArchive": false },
+  "dependencies": {}
+}
