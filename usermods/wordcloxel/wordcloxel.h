@@ -1,7 +1,7 @@
 #pragma once
 #include "wled.h"
-#include "CloxelLayoutBase.h"
-#include "ClockTimeWordConvertor.h"
+#include "cloxel_layout_base.h"
+#include "Time_word_convertor.h"
 
 /*
  * Word cloxel usermod to display the correct time & date in words on a cloxel matrix
@@ -16,6 +16,7 @@ class WordCloxel : public Usermod
 
     // Config variables
     bool m_configEnabled = false;
+    uint m_configBackgroundFade = 70;
     // uint8_t m_configStartHour = 23;
     // uint8_t m_configStartMinute = 0;
     // uint8_t m_cconfigEndHour = 7;

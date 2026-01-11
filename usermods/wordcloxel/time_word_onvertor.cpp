@@ -4,8 +4,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "wled.h"
-#include "ClockTimeWordConvertor.h"
-#include "esp.h"
+#include "time_word_convertor.h"
 
 #define arraysize(x)          (int)(sizeof((x))/sizeof(*(x)))
 

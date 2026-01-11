@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <string>
-#include "CloxelLayoutBase.h"
+#include "cloxel_layout_base.h"
 
 #ifndef NULL
 #define NULL    (void *)0

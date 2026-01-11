@@ -1,8 +1,8 @@
 #include "wled.h"
 #include "wordcloxel.h"
-#include "ClockTimeWordConvertor.h"
-#include "CloxelLayoutEN_V1.h"
-#include "CloxelLayoutNL_V1.h"
+#include "time_word_convertor.h"
+#include "cloxel_layout_en_v1.h"
+#include "cloxel_layout_nl_v1.h"
 
 // strings to reduce flash memory usage (used more than twice)
 const char WordCloxel::_txtName[]  PROGMEM = "Word cloxel";
@@ -65,6 +65,16 @@ void WordCloxel::handleOverlayDraw()
     // check if usermod is active
     if (m_configEnabled)
     {
+        Segment& seg1 = strip.getSegment(0);
+        int factor = m_configBackgroundFade * 10 / 100; // TODO THIS IS NOT GOOD!
+        for(int i = 0; i < 256; i++) 
+        {
+            uint32_t c1 = strip.getPixelColor(i);
+            uint8_t r = byte(c1>>16), g = byte(c1>>8), b = byte(c1), w = byte(c1>>24); 
+            strip.setPixelColor(i, RGBW32(r/factor, g/factor, b/factor, 0)); // <= This works better but colors will be screwed
+            //strip.setPixelColor(i, color_fade(c1, m_configBackgroundFade)); // blank out the segment
+        }   
+
         // loop over all leds
         CRGB color = RGBW32(255, 255, 255, 255);
         AddWordToLeds(m_sClockWords.pToPastWord, color);
@@ -115,6 +125,7 @@ void WordCloxel::addToConfig(JsonObject& root)
     JsonObject top = root.createNestedObject(F(_txtName));
 
     top[F("Active")] = m_configEnabled;
+    top[F("Background fade")] = m_configBackgroundFade;
     // top[F("Start hour")] = configStartHour;
     // top[F("Start minute")] = configStartMinute;
     // top[F("End hour")] = configEndHour;
@@ -144,13 +155,14 @@ bool WordCloxel::readFromConfig(JsonObject& root)
     bool configComplete = !top.isNull();
 
     configComplete &= getJsonValue(top[F("Active")], m_configEnabled);
+    configComplete &= getJsonValue(top[F("Background fade")], m_configBackgroundFade);
     // configComplete &= getJsonValue(top[F("Start hour")], configStartHour);
     // configComplete &= getJsonValue(top[F("Start minute")], configStartMinute);
     // configComplete &= getJsonValue(top[F("End hour")], configEndHour);
     // configComplete &= getJsonValue(top[F("End minute")], configEndMinute);
     // configComplete &= getJsonValue(top[F("Brightness")], configBrightness);
 
-    return true;//configComplete;
+    return configComplete;
 }
 
 /*
@@ -159,3 +171,9 @@ bool WordCloxel::readFromConfig(JsonObject& root)
 static WordCloxel usermod_wordcloxel;
 REGISTER_USERMOD(usermod_wordcloxel);
 
+
+// TODO:
+//  - X,Y coordinates can be pre-calculated at compile time
+//  - Let AddWordToLeds use an vector instead of a struct
+//  - Show cloxel at startup for X seconds
+//  - React to unconnected / connected => show no-wifi
