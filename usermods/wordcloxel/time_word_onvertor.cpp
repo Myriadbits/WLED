@@ -11,32 +11,20 @@
 using namespace std;
 
 //
-// @brief  Start the console
+// @brief Convert the given time into words for the given clock layout
 //
-void ClockTimeWordConvertor::convert(const ledclocklayout_t* pLayout, ClockWords_t* pOutput)
+void ClockTimeWordConvertor::convertHoursAndMinutes(const ledclocklayout_t* pLayout, std::vector<const ledpos_t*> &rVecOutput)
 {
-    if (pLayout == nullptr || pOutput == nullptr) return;
+    if (pLayout == nullptr) return;
     
     // check the time
-    int minutes = minute(localTime);
-    
-    int nWeekDay = weekday(localTime) - 1; // Weekday returns (1 - 7), Sunday = 1
-    int nSeconds = second(localTime);
     int nHours = hour(localTime);
     int nMinutes = minute(localTime);        
-    int monthday = day(localTime);
-    int monthnum = month(localTime) - 1; // Januari = 1, we need it to be 0
 
     // Quarter past 1 => 14 minutes to half two (in Dutch this is correct, English I don't know)
     int min5 = nMinutes / 5;
     int min1 = nMinutes % 5;        
     int hours = nHours;
-
-    // Clear the struct
-    pOutput->pMinutesMainWord = NULL;
-    pOutput->pMinutesRestWord = NULL;
-    pOutput->pHalfWord = NULL;
-    pOutput->pToPastWord = NULL;
 
     const ledtime_t* pTime = &(pLayout->time);
 
@@ -103,22 +91,25 @@ void ClockTimeWordConvertor::convert(const ledclocklayout_t* pLayout, ClockWords
 
             switch(min5)
             {
-                case  0: pOutput->pMinutesMainWord = pTime->hour_full; break;
-                case  1: pOutput->pMinutesMainWord = pTime->minute_5 ; pOutput->pToPastWord = pTime->past_5 ; break;
-                case  2: pOutput->pMinutesMainWord = pTime->minute_10; pOutput->pToPastWord = pTime->past_10; break;
-                case  3: pOutput->pMinutesMainWord = pTime->quarter;   pOutput->pToPastWord = pTime->past_15; break;
-                case  4: pOutput->pMinutesMainWord = pTime->minute_10; pOutput->pToPastWord = pTime->to_10  ; pOutput->pHalfWord = pTime->half_to; break;
-                case  5: pOutput->pMinutesMainWord = pTime->minute_5 ; pOutput->pToPastWord = pTime->to_5   ; pOutput->pHalfWord = pTime->half_to; break;
-                case  6: pOutput->pMinutesMainWord = pTime->half_to; break;
-                case  7: pOutput->pMinutesMainWord = pTime->minute_5 ; pOutput->pToPastWord = pTime->past_5 ; pOutput->pHalfWord = pTime->half_past; break;
-                case  8: pOutput->pMinutesMainWord = pTime->minute_10; pOutput->pToPastWord = pTime->past_10; pOutput->pHalfWord = pTime->half_past; break;
-                case  9: pOutput->pMinutesMainWord = pTime->quarter;   pOutput->pToPastWord = pTime->to_15  ; break;
-                case 10: pOutput->pMinutesMainWord = pTime->minute_10; pOutput->pToPastWord = pTime->to_10  ; break;
-                case 11: pOutput->pMinutesMainWord = pTime->minute_5 ; pOutput->pToPastWord = pTime->to_5   ; break;
+                case  0: rVecOutput.push_back(pTime->hour_full); break;
+                case  1: rVecOutput.push_back(pTime->minute_5); rVecOutput.push_back(pTime->past_5); break;
+                case  2: rVecOutput.push_back(pTime->minute_10); rVecOutput.push_back(pTime->past_10); break;
+                case  3: rVecOutput.push_back(pTime->quarter);   rVecOutput.push_back(pTime->past_15); break;
+                case  4: rVecOutput.push_back(pTime->minute_10); rVecOutput.push_back(pTime->to_10); rVecOutput.push_back(pTime->half_to); break;
+                case  5: rVecOutput.push_back(pTime->minute_5); rVecOutput.push_back(pTime->to_5); rVecOutput.push_back(pTime->half_to); break;
+                case  6: rVecOutput.push_back(pTime->half_to); break;
+                case  7: rVecOutput.push_back(pTime->minute_5); rVecOutput.push_back(pTime->past_5); rVecOutput.push_back(pTime->half_past); break;
+                case  8: rVecOutput.push_back(pTime->minute_10); rVecOutput.push_back(pTime->past_10); rVecOutput.push_back(pTime->half_past); break;
+                case  9: rVecOutput.push_back(pTime->quarter);   rVecOutput.push_back(pTime->to_15); break;
+                case 10: rVecOutput.push_back(pTime->minute_10); rVecOutput.push_back(pTime->to_10); break;
+                case 11: rVecOutput.push_back(pTime->minute_5); rVecOutput.push_back(pTime->to_5); break;
             }
             
             const ledpos_t* pMinute5Words[5] {NULL, pTime->minute_1, pTime->minute_2, pTime->minute_3,pTime->minute_4};
-            pOutput->pMinutesRestWord = pMinute5Words[min1];
+            if (min1 > 0)
+            {
+                rVecOutput.push_back(pMinute5Words[min1]);
+            }
         }
         break;
 
@@ -130,30 +121,68 @@ void ClockTimeWordConvertor::convert(const ledclocklayout_t* pLayout, ClockWords
 
             switch(min5)
             {
-                case  0: pOutput->pMinutesMainWord = pTime->hour_full; break;
-                case  1: pOutput->pMinutesMainWord = pTime->minute_5 ; pOutput->pToPastWord = pTime->past_5 ; break;
-                case  2: pOutput->pMinutesMainWord = pTime->minute_10; pOutput->pToPastWord = pTime->past_10; break;
-                case  3: pOutput->pMinutesMainWord = pTime->quarter;   pOutput->pToPastWord = pTime->past_15; break;
-                case  4: pOutput->pMinutesMainWord = pTime->minute_20; pOutput->pToPastWord = pTime->past_20; break;
-                case  5: pOutput->pMinutesMainWord = pTime->minute_25; pOutput->pToPastWord = pTime->past_25; break;
-                case  6: pOutput->pMinutesMainWord = pTime->half_past; break;
-                case  7: pOutput->pMinutesMainWord = pTime->minute_25; pOutput->pToPastWord = pTime->to_25; break;
-                case  8: pOutput->pMinutesMainWord = pTime->minute_20; pOutput->pToPastWord = pTime->to_20; break;
-                case  9: pOutput->pMinutesMainWord = pTime->quarter;   pOutput->pToPastWord = pTime->to_15; break;
-                case 10: pOutput->pMinutesMainWord = pTime->minute_10; pOutput->pToPastWord = pTime->to_10; break;
-                case 11: pOutput->pMinutesMainWord = pTime->minute_5 ; pOutput->pToPastWord = pTime->to_5 ; break;
+                case  0: rVecOutput.push_back(pTime->hour_full); break;
+                case  1: rVecOutput.push_back(pTime->minute_5); rVecOutput.push_back(pTime->past_5); break;
+                case  2: rVecOutput.push_back(pTime->minute_10); rVecOutput.push_back(pTime->past_10); break;
+                case  3: rVecOutput.push_back(pTime->quarter);   rVecOutput.push_back(pTime->past_15); break;
+                case  4: rVecOutput.push_back(pTime->minute_20); rVecOutput.push_back(pTime->past_20); break;
+                case  5: rVecOutput.push_back(pTime->minute_25); rVecOutput.push_back(pTime->past_25); break;
+                case  6: rVecOutput.push_back(pTime->half_past); break;
+                case  7: rVecOutput.push_back(pTime->minute_25); rVecOutput.push_back(pTime->to_25); break;
+                case  8: rVecOutput.push_back(pTime->minute_20); rVecOutput.push_back(pTime->to_20); break;
+                case  9: rVecOutput.push_back(pTime->quarter);   rVecOutput.push_back(pTime->to_15); break;
+                case 10: rVecOutput.push_back(pTime->minute_10); rVecOutput.push_back(pTime->to_10); break;
+                case 11: rVecOutput.push_back(pTime->minute_5); rVecOutput.push_back(pTime->to_5); break;
             }
             
             const ledpos_t* pMinute5Words[5] {NULL, pTime->minute_1, pTime->minute_2, pTime->minute_3,pTime->minute_4};
-            pOutput->pMinutesRestWord = pMinute5Words[min1];
+            if (min1 > 0)
+            {
+                rVecOutput.push_back(pMinute5Words[min1]);
+            }
         }
         break;
     }
 
-    pOutput->pHourWord = pLayout->hours[hours % 12];
+    // And finally, add the hour
+    rVecOutput.push_back(pLayout->hours[hours % 12]);
+}
 
-    pOutput->pDayWord = pLayout->weekdays[nWeekDay % 7];
-    pOutput->pDayOfMonthWord = pLayout->days[(monthday - 1) % 31]; // Days start at 1
-    pOutput->pMonthWord = pLayout->months[monthnum % 12];
-    pOutput->pSecondLeds = pTime->second;
+//
+// @brief  Convert the seconds into words for the given clock layout
+//
+void ClockTimeWordConvertor::convertSeconds(const ledclocklayout_t* pLayout, std::vector<const ledpos_t*> &rVecOutput)
+{
+    if (pLayout == nullptr) return;
+    
+    int nSeconds = second(localTime);
+
+    rVecOutput.push_back(pLayout->time.second);
+}
+
+//
+// @brief  Convert the date into words for the given clock layout
+//
+void ClockTimeWordConvertor::convertDate(const ledclocklayout_t* pLayout, std::vector<const ledpos_t*> &rVecOutput)
+{
+    if (pLayout == nullptr) return;
+    
+    int monthday = day(localTime);
+    int monthnum = month(localTime) - 1; // Januari = 1, we need it to be 0
+
+    rVecOutput.push_back(pLayout->days[(monthday - 1) % 31]); // Days start at 1
+    rVecOutput.push_back(pLayout->months[monthnum % 12]);
+}
+
+
+//
+// @brief  Convert the date into words for the given clock layout
+//
+void ClockTimeWordConvertor::convertWeekDay(const ledclocklayout_t* pLayout, std::vector<const ledpos_t*> &rVecOutput)
+{
+    if (pLayout == nullptr) return;
+    
+    // check the time
+    int nWeekDay = weekday(localTime) - 1; // Weekday returns (1 - 7), Sunday = 1
+    rVecOutput.push_back(pLayout->weekdays[nWeekDay % 7]);
 }

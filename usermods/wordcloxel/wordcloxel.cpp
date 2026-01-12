@@ -5,8 +5,44 @@
 #include "cloxel_layout_nl_v1.h"
 
 // strings to reduce flash memory usage (used more than twice)
-const char WordCloxel::_txtName[]  PROGMEM = "Word cloxel";
+const char WordCloxel::_txtName[]  PROGMEM = "Wordcloxel";
 const char WordCloxel::_txtNameLower[]  PROGMEM = "wordcloxel";
+const char WordCloxel::_txtMsg[]  PROGMEM = "msg";
+const char WordCloxel::_txtTime[]  PROGMEM = "time";
+constexpr int MINIMUM_INITIALIZE_TIME = 5000;
+constexpr int CLOXEL_STARTUP_CYCLE_TICKS = 200;
+constexpr int CLOXEL_STARTUP_CYCLES = 4;
+constexpr int CLOXEL_STARTUP_TOTAL_TICKS = CLOXEL_STARTUP_CYCLE_TICKS * CLOXEL_STARTUP_CYCLES + 100;
+constexpr uint32_t CLOXEL_STARTUP_COLOR = RGBW32(0xFF, 0x7E, 0, 0);
+constexpr float_t NUMBER_OF_SECOND_PULSES_PER_MINUTE = 20.0f;
+constexpr uint32_t NUMBER_OF_MILLIS_PER_PULSE = 3000;
+//constexpr float_t SECOND_PULSE_DURATION = 60000.0 / NUMBER_OF_SECOND_PULSES_PER_MINUTE;
+
+namespace
+{
+    String colorToHexString(CRGB c) 
+    {
+        char buffer[9];
+        sprintf(buffer, "%02X%02X%02X", c.r, c.g, c.b);
+        return buffer;
+    }
+   
+    bool hexStringToColor(String const &hexString, uint32_t &outputColor, uint32_t defaultColor)
+    {
+        char *ep;
+        uint32_t color = strtoul(hexString.c_str(), &ep, 16);
+        if (*ep == 0) 
+        {
+            outputColor = color;
+            return true;
+        }
+        else 
+        {
+            outputColor = defaultColor;
+            return false;
+        }
+    }
+}
 
 /*
  * Word cloxel usermod to display the correct time & date in words on a cloxel matrix
@@ -15,7 +51,19 @@ void WordCloxel::setup()
 {
     // Do nothing
     m_pCloxelLayout = &s_layoutEN_V1;
+    m_fInitialized = true;
+    m_displayMode = EDisplayModes::INITIALIZING;
+    m_startOfInitializedTime = millis();
 }
+
+
+/* 
+* Called when WiFi is (re)connected
+*/
+void WordCloxel::connected()
+{
+}
+
 
 /*
 * loop() is called continuously. In this method we check if we are inside the configured period or not.
@@ -25,12 +73,59 @@ void WordCloxel::loop()
 {
     if (m_configEnabled) 
     {
-        if (millis() - lastTime > 200) 
+        if (millis() - m_lastUpdateTime > 200) 
         { 
-            ClockTimeWordConvertor::convert(m_pCloxelLayout, &m_sClockWords);
+            m_vecWordsTime.clear();
+            m_vecWordsDate.clear();
+            m_vecWordsWeekday.clear();
+            m_vecWordsSecond.clear();
+            
+            switch (m_displayMode)
+            {
+                case EDisplayModes::INITIALIZING:                    
+                    if (m_displayCounter > CLOXEL_STARTUP_TOTAL_TICKS)
+                    {
+                        m_displayCounter = 0;
+                        if (WLED_CONNECTED && year(localTime) > 2025)
+                        {
+                            m_displayMode = EDisplayModes::NORMAL;
+                        }
+                        else
+                        {
+                            m_displayMode = EDisplayModes::NOWIFI;
+                        }
+                    }
+                    else
+                    {
+                        m_vecWordsTime.push_back(m_pCloxelLayout->extra.myriadclock);
+                        m_vecWordsTime.push_back(m_pCloxelLayout->extra.word);
+                    }
+                    break;
+
+                case EDisplayModes::NOWIFI:
+                    m_vecWordsTime.push_back(m_pCloxelLayout->extra.no);
+                    m_vecWordsTime.push_back(m_pCloxelLayout->extra.wifi);
+                    m_displayMode = EDisplayModes::NOWIFI;
+                    if (millis() > 15000)
+                    {
+                        esp_restart();
+                    }
+                    break;
+
+                case EDisplayModes::NORMAL:
+                    // Determine the words to display
+                    ClockTimeWordConvertor::convertHoursAndMinutes(m_pCloxelLayout, m_vecWordsTime);
+                    ClockTimeWordConvertor::convertDate(m_pCloxelLayout, m_vecWordsDate);
+                    ClockTimeWordConvertor::convertWeekDay(m_pCloxelLayout, m_vecWordsWeekday);
+                    ClockTimeWordConvertor::convertSeconds(m_pCloxelLayout, m_vecWordsSecond);
+                    break;
+
+                default:
+                    break;
+            }
         
             // Remember last update
-            lastTime = millis();
+            m_lastUpdateTime = millis();
         }
     }
 }
@@ -38,57 +133,73 @@ void WordCloxel::loop()
 //
 // Add a single word to the display/leds
 // customParam can be any value, normal operation when ColorHandler is not overriden: customParam is the color
-void WordCloxel::AddWordToLeds(const ledpos_t *pCurrentWord, CRGB defaultColor) 
+void WordCloxel::AddWordsToLeds(std::vector<const ledpos_t*> rVecWords, CRGB color) 
 {
-    if (pCurrentWord == NULL) return;
-
-    uint8_t charIndex = 0;
-    ledpos_t ledPos = pCurrentWord[charIndex];
-    while (ledPos.x >= 0 && ledPos.y >= 0)
+    for(const ledpos_t* pCurrentWord : rVecWords)
     {
-        // Led numbers are inverted left to right every other row:     
-        strip.setPixelColorXY(ledPos.x, ledPos.y, defaultColor);
-        
-        // Next char
-        charIndex++;
-        ledPos = pCurrentWord[charIndex];
+        uint8_t charIndex = 0;
+        ledpos_t ledPos = pCurrentWord[charIndex];
+        while (ledPos.x >= 0 && ledPos.y >= 0)
+        {
+            // Led numbers are inverted left to right every other row:     
+            strip.setPixelColorXY(ledPos.x, ledPos.y, color);
+            
+            // Next char
+            charIndex++;
+            ledPos = pCurrentWord[charIndex];
+        }
     }
 }
 
 /*
-    * handleOverlayDraw() is called just before every show() (LED strip update frame) after effects have set the colors.
-    * Use this to blank out some LEDs or set them to a different color regardless of the set effect mode.
-    * Commonly used for custom clocks (Cronixie, 7 segment)
-    */
+* handleOverlayDraw() is called just before every show() (LED strip update frame) after effects have set the colors.
+* Use this to blank out some LEDs or set them to a different color regardless of the set effect mode.
+* Commonly used for custom clocks (Cronixie, 7 segment)
+*/
 void WordCloxel::handleOverlayDraw()
 {
-    // check if usermod is active
+    // Only when this module is enabled
     if (m_configEnabled)
     {
-        Segment& seg1 = strip.getSegment(0);
-        int factor = m_configBackgroundFade * 10 / 100; // TODO THIS IS NOT GOOD!
-        for(int i = 0; i < 256; i++) 
+        // At startup, always show cloxel text
+        if (m_displayMode == EDisplayModes::INITIALIZING)
         {
-            uint32_t c1 = strip.getPixelColor(i);
-            uint8_t r = byte(c1>>16), g = byte(c1>>8), b = byte(c1), w = byte(c1>>24); 
-            strip.setPixelColor(i, RGBW32(r/factor, g/factor, b/factor, 0)); // <= This works better but colors will be screwed
-            //strip.setPixelColor(i, color_fade(c1, m_configBackgroundFade)); // blank out the segment
-        }   
+            strip.fill(BLACK);
+            m_displayCounter++;
+            if (m_displayCounter < CLOXEL_STARTUP_CYCLE_TICKS * CLOXEL_STARTUP_CYCLES)
+            {
+                float value = 127 * (1.0f - cos_approx(m_displayCounter * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS));
+                AddWordsToLeds(m_vecWordsTime, color_fade(CLOXEL_STARTUP_COLOR, (uint8_t)value));
+            }
+        }
+        else if (m_displayMode == EDisplayModes::NOWIFI)
+        {
+            strip.fill(BLACK);
+            m_displayCounter++;
+            float value = 127 * (cos_approx(m_displayCounter * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS) + 1.0f);
+            CRGB color = RGBW32((int) value, 0, 0, 0);
+            AddWordsToLeds(m_vecWordsTime, color);
+        }
+        else
+        {
+            Segment& seg1 = strip.getSegment(0);
+            int factor = m_configBackgroundFade * 10 / 100; // TODO THIS IS NOT GOOD!
+            for(int i = 0; i < seg1.width() * seg1.height(); i++) 
+            {
+                uint32_t c1 = strip.getPixelColor(i);
+                uint8_t r = byte(c1>>16), g = byte(c1>>8), b = byte(c1), w = byte(c1>>24); 
+                strip.setPixelColor(i, RGBW32(r/factor, g/factor, b/factor, 0)); // <= This works better but colors will be screwed
+                //strip.setPixelColor(i, color_fade(c1, m_configBackgroundFade)); // blank out the segment
+            }   
+            // Add all words to the clock
+            AddWordsToLeds(m_vecWordsTime, m_configTimeColor);
+            AddWordsToLeds(m_vecWordsWeekday, m_configWeekdayColor);
+            AddWordsToLeds(m_vecWordsDate, m_configDateColor);
 
-        // loop over all leds
-        CRGB color = RGBW32(255, 255, 255, 255);
-        AddWordToLeds(m_sClockWords.pToPastWord, color);
-        AddWordToLeds(m_sClockWords.pMinutesMainWord, color);
-        AddWordToLeds(m_sClockWords.pMinutesRestWord, color);
-        AddWordToLeds(m_sClockWords.pHalfWord, color);
-        AddWordToLeds(m_sClockWords.pHourWord, color);
-
-        AddWordToLeds(m_sClockWords.pDayWord, color);
-
-        AddWordToLeds(m_sClockWords.pDayOfMonthWord, color);
-        AddWordToLeds(m_sClockWords.pMonthWord, color);
-
-        AddWordToLeds(m_sClockWords.pSecondLeds, color);
+            unsigned long milliOnly = millis() % NUMBER_OF_MILLIS_PER_PULSE; 
+            float value = 127 * (1.0f + cos_approx(milliOnly * M_TWOPI / (float_t)NUMBER_OF_MILLIS_PER_PULSE));
+            AddWordsToLeds(m_vecWordsSecond, color_fade(m_configTimeColor, (uint8_t)value));
+        }
     }
 }
 
@@ -118,6 +229,30 @@ void WordCloxel::addToJsonInfo(JsonObject& root)
 }
 
 /*
+* readFromJsonState() can be used to receive data clients send to the /json/state part of the JSON API (state object).
+* Values in the state object may be modified by connected clients
+*/
+void WordCloxel::readFromJsonState(JsonObject& root)
+{
+    if (!m_fInitialized) return;  // prevent crash on boot applyPreset()
+
+    JsonObject usermod = root[FPSTR(_txtNameLower)];
+    if (!usermod.isNull()) 
+    {
+        if (usermod[FPSTR(_txtMsg)] && usermod[FPSTR(_txtMsg)].is<String>()) 
+        {
+            m_displayMsg = usermod[FPSTR(_txtMsg)].as<String>();
+        }
+        if (usermod[FPSTR(_txtTime)] && usermod[FPSTR(_txtTime)].is<int>()) 
+        {
+            m_displayTime = usermod[FPSTR(_txtTime)].as<int>();
+            if (m_displayTime > 0) m_displayTime++; // Make sure we show it at least X seconds
+            DEBUG_PRINTF("Incoming message '%s' for %d s\n", m_displayMsg.c_str(), m_displayTime);
+        }
+    }
+}
+
+/*
 * Add our own config items
 */
 void WordCloxel::addToConfig(JsonObject& root)
@@ -125,7 +260,12 @@ void WordCloxel::addToConfig(JsonObject& root)
     JsonObject top = root.createNestedObject(F(_txtName));
 
     top[F("Active")] = m_configEnabled;
+    top[F("Cloxel Layout")] = m_configLayout;
+    top[F("Time color (RRGGBB)")] = colorToHexString(m_configTimeColor);
+    top[F("Weekday color (RRGGBB)")] = colorToHexString(m_configWeekdayColor);
+    top[F("Date color (RRGGBB)")] = colorToHexString(m_configDateColor);
     top[F("Background fade")] = m_configBackgroundFade;
+
     // top[F("Start hour")] = configStartHour;
     // top[F("Start minute")] = configStartMinute;
     // top[F("End hour")] = configEndHour;
@@ -138,6 +278,14 @@ void WordCloxel::addToConfig(JsonObject& root)
 */
 void WordCloxel::appendConfigData()
 {
+    //oappend(F("dd=addDropdown('")); oappend(_txtName); oappend(F("','Cloxel layout');"));
+    //oappend(F("addOption(dd,'English V1',0);"));
+    //oappend(F("addOption(dd,'Dutch V2',1);"));
+
+    oappend(F("dd=addDropdown('")); oappend(String(FPSTR(_txtName)).c_str()); oappend(F("','Cloxel layout');"));
+    oappend(F("addOption(dd,'Nothing',0);"));
+    oappend(F("addOption(dd,'Everything',42);"));
+
     // oappend(F("addInfo('")); oappend(_txtName); oappend(F(":Start hour', 1, '(0-23)');"));
     // oappend(F("addInfo('")); oappend(_txtName); oappend(F(":Start minute', 1, '(0-59)');"));
     // oappend(F("addInfo('")); oappend(_txtName); oappend(F(":End hour', 1, '(0-23)');"));
@@ -155,7 +303,16 @@ bool WordCloxel::readFromConfig(JsonObject& root)
     bool configComplete = !top.isNull();
 
     configComplete &= getJsonValue(top[F("Active")], m_configEnabled);
+
+    configComplete &= getJsonValue(top[F("Cloxel layout")], m_configLayout);
+    
+    String tempColor;
+    configComplete &= getJsonValue(top[F("Time color (RRGGBB)")], tempColor, F("FFFFFF")) && hexStringToColor(tempColor, m_configTimeColor, 0xFFFFFF);
+    configComplete &= getJsonValue(top[F("Weekday color (RRGGBB)")], tempColor, F("FFFFFF")) && hexStringToColor(tempColor, m_configWeekdayColor, 0xFFFFFF);
+    configComplete &= getJsonValue(top[F("Date color (RRGGBB)")], tempColor, F("FFFFFF")) && hexStringToColor(tempColor, m_configDateColor, 0xFFFFFF);
+
     configComplete &= getJsonValue(top[F("Background fade")], m_configBackgroundFade);
+
     // configComplete &= getJsonValue(top[F("Start hour")], configStartHour);
     // configComplete &= getJsonValue(top[F("Start minute")], configStartMinute);
     // configComplete &= getJsonValue(top[F("End hour")], configEndHour);
@@ -164,6 +321,8 @@ bool WordCloxel::readFromConfig(JsonObject& root)
 
     return configComplete;
 }
+
+
 
 /*
 * Definition of the main usermode class wordcloxel
@@ -174,6 +333,11 @@ REGISTER_USERMOD(usermod_wordcloxel);
 
 // TODO:
 //  - X,Y coordinates can be pre-calculated at compile time
-//  - Let AddWordToLeds use an vector instead of a struct
+//  - DONE: Let AddWordToLeds use an vector instead of a struct
 //  - Show cloxel at startup for X seconds
 //  - React to unconnected / connected => show no-wifi
+//     - Or use RTC time
+//  - use colorFromHexString
+
+// Debugging using:
+//DEBUG_PRINTF_P(PSTR(" value %df\n"), color);
