@@ -16,6 +16,9 @@ constexpr int CLOXEL_STARTUP_TOTAL_TICKS = CLOXEL_STARTUP_CYCLE_TICKS * CLOXEL_S
 constexpr uint32_t CLOXEL_STARTUP_COLOR = RGBW32(0xFF, 0x7E, 0, 0);
 constexpr float_t NUMBER_OF_SECOND_PULSES_PER_MINUTE = 20.0f;
 constexpr uint32_t NUMBER_OF_MILLIS_PER_PULSE = 3000;
+
+constexpr char MY_RIPPLE_DATA[] PROGMEM = "Ripple@!,Wave #,Blur,,,,Overlay;,!;!;1;c1=0";
+
 //constexpr float_t SECOND_PULSE_DURATION = 60000.0 / NUMBER_OF_SECOND_PULSES_PER_MINUTE;
 
 namespace
@@ -54,6 +57,34 @@ void WordCloxel::setup()
     m_fInitialized = true;
     m_displayMode = EDisplayModes::INITIALIZING;
     m_startOfInitializedTime = millis();
+
+    // Initialize matrix layout
+    WS2812FX::Panel pan;
+    pan.width = 16;
+    pan.height = 16;
+    pan.rightStart = true;
+    pan.serpentine = true;
+    if (strip.panel.size() == 0)
+        strip.panel.push_back(pan);
+    strip.isMatrix = true;
+    strip.setUpMatrix();
+    strip.resetSegments();
+
+    strip.setBrightness(128);
+
+    // Select initial effect
+    Segment& seg0 = strip.getSegment(0);
+    seg0.palette = 50; // <-- TODO: Get palette working!
+    seg0.speed = 128;
+    seg0.intensity = 128;
+    seg0.custom1 = 0;
+    seg0.mode = FX_MODE_RIPPLE;
+
+    seg0.fadeToBlackBy(20);
+
+    seg0.beginDraw(0xFFFFU);             
+
+    //strip.setBrightness(128);
 }
 
 
@@ -89,6 +120,13 @@ void WordCloxel::loop()
                         if (WLED_CONNECTED && year(localTime) > 2025)
                         {
                             m_displayMode = EDisplayModes::NORMAL;
+
+                            // Select a default effect
+                            Segment& seg0 = strip.getSegment(0);                            
+                            seg0.palette = 50; // Palette is NOT working! Aurora (55 = Aurora_gp)
+                            seg0.speed = 20;
+                            seg0.intensity = 128;
+                            seg0.mode = FX_MODE_2DPOLARLIGHTS;
                         }
                         else
                         {
@@ -96,7 +134,7 @@ void WordCloxel::loop()
                         }
                     }
                     else
-                    {
+                    {                        
                         m_vecWordsTime.push_back(m_pCloxelLayout->extra.myriadclock);
                         m_vecWordsTime.push_back(m_pCloxelLayout->extra.word);
                     }
@@ -164,7 +202,7 @@ void WordCloxel::handleOverlayDraw()
         // At startup, always show cloxel text
         if (m_displayMode == EDisplayModes::INITIALIZING)
         {
-            strip.fill(BLACK);
+            //strip.fill(BLACK);
             m_displayCounter++;
             if (m_displayCounter < CLOXEL_STARTUP_CYCLE_TICKS * CLOXEL_STARTUP_CYCLES)
             {
@@ -174,7 +212,7 @@ void WordCloxel::handleOverlayDraw()
         }
         else if (m_displayMode == EDisplayModes::NOWIFI)
         {
-            strip.fill(BLACK);
+            //strip.fill(BLACK);
             m_displayCounter++;
             float value = 127 * (cos_approx(m_displayCounter * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS) + 1.0f);
             CRGB color = RGBW32((int) value, 0, 0, 0);
@@ -182,14 +220,14 @@ void WordCloxel::handleOverlayDraw()
         }
         else
         {
-            Segment& seg1 = strip.getSegment(0);
-            int factor = m_configBackgroundFade * 10 / 100; // TODO THIS IS NOT GOOD!
-            for(int i = 0; i < seg1.width() * seg1.height(); i++) 
+            Segment& seg0 = strip.getSegment(0);
+            //int factor = m_configBackgroundFade * 10 / 100; // TODO THIS IS NOT GOOD!
+            for(int i = 0; i < seg0.width() * seg0.height(); i++) 
             {
                 uint32_t c1 = strip.getPixelColor(i);
                 uint8_t r = byte(c1>>16), g = byte(c1>>8), b = byte(c1), w = byte(c1>>24); 
-                strip.setPixelColor(i, RGBW32(r/factor, g/factor, b/factor, 0)); // <= This works better but colors will be screwed
-                //strip.setPixelColor(i, color_fade(c1, m_configBackgroundFade)); // blank out the segment
+                //strip.setPixelColor(i, RGBW32(r/factor, g/factor, b/factor, 0)); // <= This works better but colors will be screwed
+                strip.setPixelColor(i, color_fade(c1, m_configBackgroundFade)); // blank out the segment
             }   
             // Add all words to the clock
             AddWordsToLeds(m_vecWordsTime, m_configTimeColor);
@@ -338,6 +376,8 @@ REGISTER_USERMOD(usermod_wordcloxel);
 //  - React to unconnected / connected => show no-wifi
 //     - Or use RTC time
 //  - use colorFromHexString
+//  - Make sure the timings work on a clean  ESP32
+//  - Setup correct LED matric layout on a clean ESP32
 
 // Debugging using:
 //DEBUG_PRINTF_P(PSTR(" value %df\n"), color);

@@ -30,18 +30,18 @@ class WordCloxel : public Usermod
     static const char _txtBrightness[];
 
     // Config variables
-    bool m_configEnabled {false};
-    uint8_t m_configLayout = 0;
-    uint32_t m_configTimeColor = 0x00FF00;
-    uint32_t m_configWeekdayColor = 0xFFA500;
-    uint32_t m_configDateColor = 0xE59400;
-    uint m_configBackgroundFade {70};
+    bool m_configEnabled {true};
+    uint8_t m_configLayout {0};
+    uint32_t m_configTimeColor {0x00FF00};
+    uint32_t m_configWeekdayColor {0xFFA500};
+    uint32_t m_configDateColor {0xFF5500};
+    uint m_configBackgroundFade {40};
 
     std::vector<const ledpos_t*> m_vecWordsTime;
     std::vector<const ledpos_t*> m_vecWordsDate;
     std::vector<const ledpos_t*> m_vecWordsWeekday;
     std::vector<const ledpos_t*> m_vecWordsSecond;
-    const ledclocklayout_t *m_pCloxelLayout = nullptr;
+    const ledclocklayout_t *m_pCloxelLayout {nullptr};
 
     String m_displayMsg;
     int m_displayTime {0};
