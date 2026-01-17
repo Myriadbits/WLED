@@ -32,9 +32,9 @@ class WordCloxel : public Usermod
     // Config variables
     bool m_configEnabled {true};
     uint8_t m_configLayout {0};
-    uint32_t m_configTimeColor {0x00FF00};
-    uint32_t m_configWeekdayColor {0xFFA500};
-    uint32_t m_configDateColor {0xFF5500};
+    CRGB m_configTimeColor {0x00FF00};
+    CRGB m_configWeekdayColor {0xFFA500};
+    CRGB m_configDateColor {0xFF5500};
     uint m_configBackgroundFade {40};
 
     std::vector<const ledpos_t*> m_vecWordsTime;
