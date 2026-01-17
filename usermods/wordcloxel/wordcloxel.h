@@ -3,13 +3,23 @@
 #include "cloxel_layout_base.h"
 #include "Time_word_convertor.h"
 
-typedef enum 
+typedef enum EDisplayMode
 {
-    NONE = 0,
-    INITIALIZING, 
-    NOWIFI,
-    NORMAL
-} EDisplayModes;
+    DM_NONE = 0,
+    DM_INITIALIZING, 
+    DM_NOWIFI,
+    DM_NORMAL
+} EDisplayMode;
+
+typedef enum EMessageMode
+{
+    EM_NONE = 0,
+    EM_GOODMORNING,
+    EM_BREAKFAST, 
+    EM_LUNCH,
+    EM_DINNER,
+    EM_WORDCLOXEL
+} EMessageMode;
 
 /*
  * Word cloxel usermod to display the correct time & date in words on a cloxel matrix
@@ -21,7 +31,11 @@ class WordCloxel : public Usermod
     unsigned long m_startOfInitializedTime {0};
     int m_displayCounter {0};
     bool m_fInitialized {false};
-    EDisplayModes m_displayMode {EDisplayModes::INITIALIZING};
+    EDisplayMode m_displayMode {EDisplayMode::DM_INITIALIZING};
+    EMessageMode m_messageMode {EMessageMode::EM_NONE};
+    unsigned long m_messageEndTime {0};
+    int m_messageTime {0};
+
     static const char _txtName[];
     static const char _txtNameLower[];
     static const char _txtMsg[];
@@ -41,11 +55,9 @@ class WordCloxel : public Usermod
     std::vector<const ledpos_t*> m_vecWordsDate;
     std::vector<const ledpos_t*> m_vecWordsWeekday;
     std::vector<const ledpos_t*> m_vecWordsSecond;
+    std::vector<const ledpos_t*> m_vecWordsExtra;
     const ledclocklayout_t *m_pCloxelLayout {nullptr};
 
-    String m_displayMsg;
-    int m_displayTime {0};
-    
   public:
     void setup() override;
 

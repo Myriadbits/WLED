@@ -194,6 +194,7 @@ static const ledclocklayout_t s_layoutNL_V1 =
         NLV1_holiday,
         NLV1_party,
         NLV1_wakeup,
+        EMPTY,
         NLV1_breakfast,
         NLV1_lunch,
         NLV1_dinner,

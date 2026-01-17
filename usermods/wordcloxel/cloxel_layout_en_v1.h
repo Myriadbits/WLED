@@ -199,6 +199,7 @@ static const ledclocklayout_t s_layoutEN_V1 =
         ENV1_holiday,
         ENV1_party,
         ENV1_wakeup,
+        EMPTY,
         ENV1_breakfast,
         ENV1_lunch,
         ENV1_dinner,
