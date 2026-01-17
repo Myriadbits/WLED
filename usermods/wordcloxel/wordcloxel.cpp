@@ -28,23 +28,7 @@ namespace
         char buffer[9];
         sprintf(buffer, "%02X%02X%02X", c.r, c.g, c.b);
         return buffer;
-    }
-   
-    bool hexStringToColor(String const &hexString, uint32_t &outputColor, uint32_t defaultColor)
-    {
-        char *ep;
-        uint32_t color = strtoul(hexString.c_str(), &ep, 16);
-        if (*ep == 0) 
-        {
-            outputColor = color;
-            return true;
-        }
-        else 
-        {
-            outputColor = defaultColor;
-            return false;
-        }
-    }
+    }   
 }
 
 /*
@@ -236,7 +220,7 @@ void WordCloxel::handleOverlayDraw()
 
             unsigned long milliOnly = millis() % NUMBER_OF_MILLIS_PER_PULSE; 
             float value = 127 * (1.0f + cos_approx(milliOnly * M_TWOPI / (float_t)NUMBER_OF_MILLIS_PER_PULSE));
-            AddWordsToLeds(m_vecWordsSecond, color_fade(m_configTimeColor, (uint8_t)value));
+            AddWordsToLeds(m_vecWordsSecond, color_fade((uint32_t) m_configTimeColor, (uint8_t)value));
         }
     }
 }
@@ -298,7 +282,7 @@ void WordCloxel::addToConfig(JsonObject& root)
     JsonObject top = root.createNestedObject(F(_txtName));
 
     top[F("Active")] = m_configEnabled;
-    top[F("Cloxel Layout")] = m_configLayout;
+    top[F("Layout")] = m_configLayout;
     top[F("Time color (RRGGBB)")] = colorToHexString(m_configTimeColor);
     top[F("Weekday color (RRGGBB)")] = colorToHexString(m_configWeekdayColor);
     top[F("Date color (RRGGBB)")] = colorToHexString(m_configDateColor);
@@ -316,13 +300,9 @@ void WordCloxel::addToConfig(JsonObject& root)
 */
 void WordCloxel::appendConfigData()
 {
-    //oappend(F("dd=addDropdown('")); oappend(_txtName); oappend(F("','Cloxel layout');"));
-    //oappend(F("addOption(dd,'English V1',0);"));
-    //oappend(F("addOption(dd,'Dutch V2',1);"));
-
-    oappend(F("dd=addDropdown('")); oappend(String(FPSTR(_txtName)).c_str()); oappend(F("','Cloxel layout');"));
-    oappend(F("addOption(dd,'Nothing',0);"));
-    oappend(F("addOption(dd,'Everything',42);"));
+    oappend(F("dd=addDropdown('")); oappend(_txtName); oappend(F("','Layout');"));
+    oappend(F("addOption(dd,'English V1',0);"));
+    oappend(F("addOption(dd,'Dutch V2',1);"));
 
     // oappend(F("addInfo('")); oappend(_txtName); oappend(F(":Start hour', 1, '(0-23)');"));
     // oappend(F("addInfo('")); oappend(_txtName); oappend(F(":Start minute', 1, '(0-59)');"));
@@ -341,21 +321,14 @@ bool WordCloxel::readFromConfig(JsonObject& root)
     bool configComplete = !top.isNull();
 
     configComplete &= getJsonValue(top[F("Active")], m_configEnabled);
+    configComplete &= getJsonValue(top[F("Layout")], m_configLayout);
 
-    configComplete &= getJsonValue(top[F("Cloxel layout")], m_configLayout);
-    
     String tempColor;
-    configComplete &= getJsonValue(top[F("Time color (RRGGBB)")], tempColor, F("FFFFFF")) && hexStringToColor(tempColor, m_configTimeColor, 0xFFFFFF);
-    configComplete &= getJsonValue(top[F("Weekday color (RRGGBB)")], tempColor, F("FFFFFF")) && hexStringToColor(tempColor, m_configWeekdayColor, 0xFFFFFF);
-    configComplete &= getJsonValue(top[F("Date color (RRGGBB)")], tempColor, F("FFFFFF")) && hexStringToColor(tempColor, m_configDateColor, 0xFFFFFF);
+    configComplete &= getJsonValue(top[F("Time color (RRGGBB)")], tempColor, F("FFFFFF")) && colorFromHexString(m_configTimeColor.raw, tempColor.c_str());
+    configComplete &= getJsonValue(top[F("Weekday color (RRGGBB)")], tempColor, F("FFFFFF")) && colorFromHexString(m_configWeekdayColor.raw, tempColor.c_str());
+    configComplete &= getJsonValue(top[F("Date color (RRGGBB)")], tempColor, F("FFFFFF")) && colorFromHexString(m_configDateColor.raw, tempColor.c_str());
 
     configComplete &= getJsonValue(top[F("Background fade")], m_configBackgroundFade);
-
-    // configComplete &= getJsonValue(top[F("Start hour")], configStartHour);
-    // configComplete &= getJsonValue(top[F("Start minute")], configStartMinute);
-    // configComplete &= getJsonValue(top[F("End hour")], configEndHour);
-    // configComplete &= getJsonValue(top[F("End minute")], configEndMinute);
-    // configComplete &= getJsonValue(top[F("Brightness")], configBrightness);
 
     return configComplete;
 }
