@@ -10,10 +10,12 @@ class RTCUsermod : public Usermod {
   public:
 
     void setup() {
+      DEBUG_PRINTF_P(PSTR("---> SCL %d\n"), i2c_scl);
       if (i2c_scl<0 || i2c_sda<0) { disabled = true; return; }
       RTC.begin();
       time_t rtcTime = RTC.get();
       if (rtcTime) {
+        DEBUG_PRINTF_P(PSTR("RTC time found: %u\n"), (unsigned)rtcTime);
         toki.setTime(rtcTime,TOKI_NO_MS_ACCURACY,TOKI_TS_RTC);
         updateLocalTime();
       } else {
@@ -25,7 +27,11 @@ class RTCUsermod : public Usermod {
       if (disabled || strip.isUpdating()) return;
       if (toki.isTick()) {
         time_t t = toki.second();
-        if (t != RTC.get()) RTC.set(t); //set RTC to NTP/UI-provided value
+        if (t != RTC.get())
+        {
+            RTC.set(t); //set RTC to NTP/UI-provided value
+            DEBUG_PRINTF_P(PSTR("RTC time set to: %u\n"), (unsigned)t);
+        }
       }
     }
 

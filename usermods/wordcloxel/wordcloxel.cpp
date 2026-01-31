@@ -4,6 +4,12 @@
 #include "cloxel_layout_en_v1.h"
 #include "cloxel_layout_nl_v1.h"
 
+#define WORDCLOCK_MANUFACTURER    "www.cloxel.nl"
+#define WORDCLOCK_MODEL           "Wordcloxel"
+#define WORDCLOCK_VERSION         "2.1.0"
+#define WORDCLOCK_DEFAULTNAME     "Wordcloxel"
+#define WORDCLOCK_DEFAULTLOCATION "Home"
+
 // strings to reduce flash memory usage (used more than twice)
 const char WordCloxel::_txtName[]  PROGMEM = "Wordcloxel";
 const char WordCloxel::_txtNameLower[]  PROGMEM = "wordcloxel";
@@ -16,10 +22,16 @@ constexpr int CLOXEL_STARTUP_TOTAL_TICKS = CLOXEL_STARTUP_CYCLE_TICKS * CLOXEL_S
 constexpr uint32_t CLOXEL_STARTUP_COLOR = RGBW32(0xFF, 0x7E, 0, 0);
 constexpr float_t NUMBER_OF_SECOND_PULSES_PER_MINUTE = 20.0f;
 constexpr uint32_t NUMBER_OF_MILLIS_PER_PULSE = 3000;
+constexpr uint32_t RESTART_TIME_NOWIFI = 300000; // ms
 
 constexpr char MY_RIPPLE_DATA[] PROGMEM = "Ripple@!,Wave #,Blur,,,,Overlay;,!;!;1;c1=0";
 
 //constexpr float_t SECOND_PULSE_DURATION = 60000.0 / NUMBER_OF_SECOND_PULSES_PER_MINUTE;
+
+// The BLE Config library
+// Without BLE: 98620
+BLEConfig  g_bleconfig(WORDCLOCK_MODEL, WORDCLOCK_MANUFACTURER, WORDCLOCK_VERSION, 256); // 256 = Clock TODO VERSION
+// 94452
 
 namespace
 {
@@ -36,6 +48,7 @@ namespace
  */
 void WordCloxel::setup()
 {
+
     // Do nothing
     m_pCloxelLayout = &s_layoutEN_V1;
     m_fInitialized = true;
@@ -55,6 +68,73 @@ void WordCloxel::setup()
     //strip.resetSegments(); // Do not use: palette is screwed up!
 
     strip.setBrightness(128);
+
+    // 25560 => 61360
+    // Load/initialize all BLE Config settings
+    g_bleconfig.registerWifi(CONFIG_WIFI, "WiFi SSID");
+
+    g_bleconfig.registerString(CONFIG_LOCATION, "Location", std::string(WORDCLOCK_DEFAULTLOCATION), true);
+
+    // 23964
+    BLEConfigItemOption *pconfig = g_bleconfig.registerOption(CONFIG_LAYOUT, "Clock layout", 3);
+    pconfig->addOption((uint8_t) 0, "English V1");
+    pconfig->addOption((uint8_t) 1, "Dutch V1");
+
+    // 22752
+    pconfig = g_bleconfig.registerOption(CONFIG_DAYLIGHTSAVING, "Daylight saving zone", 0);
+    pconfig->addOption((uint8_t) 0, "Off"); 
+    pconfig->addOption((uint8_t) 1, "Central European"); 
+    pconfig->addOption((uint8_t) 2, "United Kingdom"); 
+    pconfig->addOption((uint8_t) 3, "Australia");
+    pconfig->addOption((uint8_t) 4, "US"); 
+      
+    pconfig = g_bleconfig.registerOption(CONFIG_TIMEZONE, "Timezone", 13);
+    pconfig->addOption((uint8_t) 0, "-12"); 
+    pconfig->addOption((uint8_t) 1, "-11"); 
+    pconfig->addOption((uint8_t) 2, "-10");
+    pconfig->addOption((uint8_t) 3, "-9");
+    pconfig->addOption((uint8_t) 4, "-8"); 
+    pconfig->addOption((uint8_t) 5, "-7"); 
+    pconfig->addOption((uint8_t) 6, "-6"); 
+    pconfig->addOption((uint8_t) 7, "-5"); 
+    pconfig->addOption((uint8_t) 8, "-4"); 
+    pconfig->addOption((uint8_t) 9, "-3"); 
+    pconfig->addOption((uint8_t) 10, "-2"); 
+    pconfig->addOption((uint8_t) 11, "-1"); 
+    pconfig->addOption((uint8_t) 12, "0"); 
+    pconfig->addOption((uint8_t) 13, "1"); 
+    pconfig->addOption((uint8_t) 14, "2"); 
+    pconfig->addOption((uint8_t) 15, "3"); 
+    pconfig->addOption((uint8_t) 16, "4"); 
+    pconfig->addOption((uint8_t) 17, "5"); 
+    pconfig->addOption((uint8_t) 18, "6"); 
+    pconfig->addOption((uint8_t) 19, "7"); 
+    pconfig->addOption((uint8_t) 20, "8"); 
+    pconfig->addOption((uint8_t) 21, "9"); 
+    pconfig->addOption((uint8_t) 22, "10"); 
+    pconfig->addOption((uint8_t) 23, "11"); 
+    pconfig->addOption((uint8_t) 24, "12"); 
+
+    g_bleconfig.registerRGBColor(CONFIG_COLOR_TIME, "Time color", 0x00FF00, true);
+    g_bleconfig.registerRGBColor(CONFIG_COLOR_WEEKDAY, "Weekday Color", 0xFFA500, true);
+    g_bleconfig.registerRGBColor(CONFIG_COLOR_DATE, "Date color", 0xE59400, true);
+    g_bleconfig.registerRGBColor(CONFIG_COLOR_BACKGROUND, "Background color", 0xFFFFFF, true);   
+
+    g_bleconfig.registerSlider(CONFIG_BRIGHTNESS_DAY, "Brightness Day", 80, false);
+    g_bleconfig.registerSlider(CONFIG_BRIGHTNESS_NIGHT, "Brightness Night", 30, false);
+    g_bleconfig.registerSlider(CONFIG_BRIGHTNESS_BACKGROUND, "Background Brightness", 4, false);
+
+    // pconfig = g_bleconfig.registerCommandOption(CONFIG_COMMAND, "Custom commands");
+    // pconfig->addOption((uint8_t) UC_NORMAL, "Normal");
+    // pconfig->addOption((uint8_t) UC_MATRIX, "Matrix");
+    // pconfig->addOption((uint8_t) UC_ALLWORDS, "All words");
+    // pconfig->addOption((uint8_t) UC_ANALOG, "Analog");
+
+    // Start the BLE Config stuff
+    // This will also load all previously stored settings
+    g_bleconfig.start(this);
+
+    sleep(2); // Wait a bit for BLE to start
 
     // Select initial effect
     Segment& seg0 = strip.getSegment(0);
@@ -92,6 +172,12 @@ void WordCloxel::loop()
             // Remember last update
             m_lastUpdateTime = currentTime;
 
+            if (m_heapCounter++ >= 100)
+            {
+                m_heapCounter = 0;
+                BLECONFIG_LOG("Heap now: %ld", getFreeHeapSize());
+            }
+
             // Clear previous words
             m_vecWordsTime.clear();
             m_vecWordsDate.clear();
@@ -102,9 +188,9 @@ void WordCloxel::loop()
             switch (m_displayMode)
             {
                 case EDisplayMode::DM_INITIALIZING:         
-                    DEBUG_PRINTF("%ld, Counter %d\n", currentTime, m_displayCounter);
+                    //DEBUG_PRINTF("%ld, Counter %d\n", currentTime, m_displayCounter);
                     if (m_displayCounter > CLOXEL_STARTUP_TOTAL_TICKS)
-                    {
+                    {                      
                         m_displayCounter = 0;
                         if (WLED_CONNECTED && year(localTime) > 2025)
                         {
@@ -133,7 +219,7 @@ void WordCloxel::loop()
                     m_vecWordsTime.push_back(m_pCloxelLayout->extra.no);
                     m_vecWordsTime.push_back(m_pCloxelLayout->extra.wifi);
                     m_displayMode = EDisplayMode::DM_NOWIFI;
-                    if (currentTime > 15000)
+                    if (currentTime > RESTART_TIME_NOWIFI)
                     {
                         esp_restart();
                     }
@@ -389,6 +475,55 @@ bool WordCloxel::readFromConfig(JsonObject& root)
 
     return configComplete;
 }
+
+
+//
+// A BT connection request arrives, display the passcode
+// 
+void WordCloxel::onDisplayPassKey(uint32_t passkey)
+{
+}
+
+//
+// A BT connection has been established or failed
+// 
+void WordCloxel::onBluetoothConnection(bool success)
+{   
+}
+
+//
+// A config item has changed, forward to the settings
+// 
+void WordCloxel::onConfigItemChanged(BLEConfigItemBase *pconfigItem)
+{
+    if (pconfigItem != NULL)
+    {
+        switch (pconfigItem->getId())
+        {
+            case CONFIG_LAYOUT:
+                {
+                    // Clock layout has changed, 
+                  //  BLEConfigItemOption* pconfig = (BLEConfigItemOption*) pconfigItem;
+                    //setLayout(pconfig->getValue());
+                }
+                break;
+
+            case CONFIG_TIMEZONE:
+            case CONFIG_DAYLIGHTSAVING:
+                //setTimezone();
+                break;
+
+            case CONFIG_COMMAND:
+                {
+                    //BLEConfigItemCommand* pconfig = (BLEConfigItemCommand*) pconfigItem;
+                    //BLECONFIG_LOG("Executing User Command: %d", pconfig->getLastCommandID());
+                }
+                break;
+
+        }
+    }
+}
+
 
 /*
 * Definition of the main usermode class wordcloxel
