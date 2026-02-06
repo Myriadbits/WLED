@@ -29,6 +29,8 @@ public:
     void clearOptions();
     void addOption(const uint8_t optionValue, const std::string optionText);
     MIOTConfigOption_t* getOption(const uint8_t optionValue);
+    bool isOptionPresent(const std::string optionText);
+    MIOTConfigOption_t* getOptionByIndex(const uint8_t index);
 
 protected:
     virtual int onEncodeData(uint8_t *pdata, int dataLen, int idx);

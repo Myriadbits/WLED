@@ -57,22 +57,17 @@ bool BLEConfigItemBase::decode(std::string data)
 
 //
 // Load this config item from the preferences
-void BLEConfigItemBase::load(Preferences &preferences)
+void BLEConfigItemBase::load()
 {
-    // Create the preference key
-    char sprefKey[16];
-    snprintf(sprefKey, 16, "key_%d", m_id);
-    onLoad(preferences, sprefKey);    
+    onLoad();
 }
 
 //
 // Store this config item to the preferences
-void BLEConfigItemBase::store(Preferences &preferences)
+void BLEConfigItemBase::store()
 {
     // Create the preference key
-    char sprefKey[16];
-    snprintf(sprefKey, 16, "key_%d", m_id);
-    onStore(preferences, sprefKey);
+    onStore();
 }
 
 //

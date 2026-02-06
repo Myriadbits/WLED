@@ -38,6 +38,28 @@ MIOTConfigOption_t* BLEConfigItemOption::getOption(const uint8_t optionValue)
 }
 
 //
+// Check if an option with the given text is already present
+// optionText: The text of the option to check
+bool BLEConfigItemOption::isOptionPresent(const std::string optionText)
+{
+    for (int n = 0; n < m_vecOptions.size(); n++)
+    {
+        if (m_vecOptions[n].m_sName == optionText)
+            return true;
+    }
+    return false;
+}
+
+// Get a specific option identified by an index (position in the list)
+// index: The index of this option
+MIOTConfigOption_t* BLEConfigItemOption::getOptionByIndex(const uint8_t index)
+{
+    if (index < m_vecOptions.size())
+        return &(m_vecOptions[index]);
+    return NULL;
+}
+
+//
 // Encode this config string item into a byte array/buffer
 // pdata: pointer to the buffer
 // idx: index where the data should be stored

@@ -57,22 +57,22 @@ public:
 private:
     int encode(uint8_t *pdata, int dataLen);
     bool decode(std::string data);
-    void load(Preferences &preferences);
-    void store(Preferences &preferences);
+    void load();
+    void store();
 
     friend class BLEConfig;
 
 protected:
     virtual int onEncodeData(uint8_t *pdata, int dataLen, int idx) { return idx;};
     virtual void onDecodeData(std::string data) {};
-    virtual void onLoad(Preferences &preferences, char* pkey) = 0;
-    virtual void onStore(Preferences &preferences, char* pkey) = 0;
+    virtual void onLoad() {};
+    virtual void onStore() {}
+    virtual void onConnect() {};
     virtual std::string valueToString() { return std::string(""); };
-   
-   
+      
 private:
     uint16_t            m_id; // Unique ID 
-    EConfigType         m_eType; // The configuratio item type
+    EConfigType         m_eType; // The config item type
     std::string         m_sName; // Short name of this config item
     std::string         m_sSynopsis; // Short description
     bool                m_fSecure; // This config item requires a secure connection

@@ -26,18 +26,18 @@ void BLEConfigItemUInt8::onDecodeData(std::string data)
 
 //
 // Load this config item from the preferences
-void BLEConfigItemUInt8::onLoad(Preferences &preferences, char* pkey)
+void BLEConfigItemUInt8::onLoad()
 {
-    m_value = preferences.getUChar(pkey, m_valueDefault);    
-    BLECONFIG_LOG("Loading key '%s' (%s) with value: %d", this->getName().c_str(), pkey, m_value);
+    // m_value = preferences.getUChar(pkey, m_valueDefault);    
+    // BLECONFIG_LOG("Loading key '%s' (%s) with value: %d", this->getName().c_str(), pkey, m_value);
 }
 
 //
 // Store this config item to the preferences
-void BLEConfigItemUInt8::onStore(Preferences &preferences, char* pkey)
+void BLEConfigItemUInt8::onStore()
 {
-    preferences.putUChar(pkey, m_value);
-    BLECONFIG_LOG("Storing key '%s' (%s) with value: %d", this->getName().c_str(), pkey, m_value);
+    // preferences.putUChar(pkey, m_value);
+    // BLECONFIG_LOG("Storing key '%s' (%s) with value: %d", this->getName().c_str(), pkey, m_value);
 }
 
 //

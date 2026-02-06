@@ -19,7 +19,6 @@
 
     Dependencies: 
         Wifi.h
-        Preferences
 
 
     The purpose of this class is to have a fast and stable deploy and discovery mechanism
@@ -86,10 +85,6 @@
 #define BLECONFIG_DEFAULT_VERSION            "1.0.0"
 #define BLECONFIG_DEFAULT_APPEARANCE         256 // Default to clock see also: https://developer.nordicsemi.com/nRF5_SDK/nRF51_SDK_v4.x.x/doc/html/group___b_l_e___a_p_p_e_a_r_a_n_c_e_s.html
 
-#define BLECONFIG_PREFERENCES                "BLEConfig" // Main path for storing all preferences data
-#define BLECONFIG_PREFERENCES_SSID           "SSID" // Key for storing the SSID to the preferences
-#define BLECONFIG_PREFERENCES_PASSPHRASE     "Passphrase" // Key for storing the SSID to the preferences
-
 // BLE Defines
 #define BLECONFIG_SERVICE_UUID               "ebd7dc16-04a0-4f9c-96f3-05644d494f54"
 #define BLECONFIG_CHAR_CONFIG                "ebd7%04x-04a0-4f9c-96f3-05644d494f54" // snprintf Format (do not use 0000)
@@ -153,10 +148,7 @@ public:
     void init();
 
     // Start the BLE Config services
-    void start(IBLEConfigCallbacks* pCallBacks);    
-
-    // Store all settings (call this method when a config item is changed in code)
-    void store();
+    void start(IBLEConfigCallbacks* pCallBacks);   
 
     // Setters
     void setProductName(const std::string model) { m_model = model; }
@@ -193,7 +185,6 @@ private:
 private:
     IBLEConfigCallbacks*    m_pCallBacks; // Pointer to the callback interface
     BLEServer*              m_pBLEServer; // The BLE server
-    Preferences             m_preferences; // Preference is used for storing the Config items
 
     // All config items
     std::vector<BLEConfigItemBase*>     m_vecConfigItems;

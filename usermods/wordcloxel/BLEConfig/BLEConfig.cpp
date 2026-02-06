@@ -172,8 +172,6 @@ std::string BLEConfig::getConfigValueString(const uint8_t id)
 // Might be good to add that as a QR code to the product itself
 void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
 {
-    m_preferences.begin(BLECONFIG_PREFERENCES);
-
     m_pCallBacks = pCallBacks;
 
     // Default device ID is the serial number of the Chip
@@ -186,33 +184,16 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
         m_deviceId = std::string(hex);
     }
     m_deviceName = m_model + "-" + m_deviceId;
-   // WiFi.setHostname(m_deviceName.c_str());
 
     BLECONFIG_LOG("Starting BLE Config");
     BLECONFIG_LOG("- Product:  %s", m_model.c_str());
     BLECONFIG_LOG("- DeviceId: %s", m_deviceId.c_str());
     BLECONFIG_LOG("- DeviceName: %s", m_deviceName.c_str());
     BLECONFIG_LOG("- Version:  %s", m_version.c_str());
-
-    
-    //
-    // BLE initializatons
-    //
-    // BLECONFIG_LOG("BLE initialized: %d", BLEDevice::getInitialized());
-    // if (!btStart()) {
-    //     BLECONFIG_LOG("ERROR: btStart failed");
-    //     return;
-    // }
-    // vTaskDelay(200 / portTICK_PERIOD_MS); // Delay for 200 msecs as a workaround to an apparent Arduino environment issue.
-
-    BLEDevice::init(m_deviceName.c_str());
-    // BLECONFIG_LOG("BLE initialized: %d", BLEDevice::getInitialized());
-
-    // BLECONFIG_LOG("btStarted: %d", btStarted());
-
-
-   // init(); 
-    
+   
+    //Initialize the BLE stack
+    BLEDevice::init(m_deviceName.c_str());    
+    BLECONFIG_LOG("BLE Initialized");
 
     m_pBLEServer = BLEDevice::createServer();
     m_pBLEServer->setCallbacks(this);
@@ -241,13 +222,13 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
     pCharRevision->setAccessPermissions(ESP_GATT_PERM_READ);
     pCharRevision->setValue(m_version);
       
-    // // Start all device info
+    // Start all device info
     pDeviceInfoService->start();
-
+    
     //
     // Load all data for all config items
     for (auto it : m_vecConfigItems)
-        it->load(m_preferences);
+        it->load();
 
     // BLEConfig service
     BLECONFIG_LOG("Starting BLE service with %d config items", m_vecConfigItems.size());
@@ -313,14 +294,6 @@ void BLEConfig::addConfigCharacteristic(BLEService *pBLEConfigService, BLEConfig
 }
 
 //
-// Store all settings
-void BLEConfig::store()
-{
-     for (auto it : m_vecConfigItems)
-         it->store(m_preferences);
-}
-
-//
 // BLE Characteristic is written
 void BLEConfig::onWrite(BLECharacteristic* pCharacteristic)
 {
@@ -328,7 +301,7 @@ void BLEConfig::onWrite(BLECharacteristic* pCharacteristic)
     uint32_t uid = 0; 
     if (sscanf(pCharacteristic->getUUID().toString().c_str(), BLECONFIG_CHAR_CONFIG, &uid) == 1)
     {
-        BLECONFIG_LOG("- Data received for config item %d", uid);
+        BLECONFIG_LOG("Data received for config item %d", uid);
 
         // Find the matching config item
         bool found = false;
@@ -341,7 +314,7 @@ void BLEConfig::onWrite(BLECharacteristic* pCharacteristic)
                 BLECONFIG_LOG("Setting config item [%d]: '%s' to '%s'", uid, it->getName().c_str(), it->valueToString().c_str());
 
                 // Store the new changed value
-                it->store(m_preferences);
+                it->store();
 
                 // Forward to the callbacks that the config item is changed!
                 if (m_pCallBacks != NULL)
@@ -364,6 +337,9 @@ void BLEConfig::onConnect(BLEServer* pServer)
 {
     BLECONFIG_LOG("onConnect");
     m_isDeviceConnected = true;
+
+    for (auto it : m_vecConfigItems)
+        it->onConnect(); 
 }
 
 void BLEConfig::onDisconnect(BLEServer* pServer)

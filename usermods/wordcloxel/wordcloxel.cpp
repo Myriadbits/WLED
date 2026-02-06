@@ -48,7 +48,6 @@ namespace
  */
 void WordCloxel::setup()
 {
-
     // Do nothing
     m_pCloxelLayout = &s_layoutEN_V1;
     m_fInitialized = true;
@@ -88,41 +87,41 @@ void WordCloxel::setup()
     pconfig->addOption((uint8_t) 3, "Australia");
     pconfig->addOption((uint8_t) 4, "US"); 
       
-    pconfig = g_bleconfig.registerOption(CONFIG_TIMEZONE, "Timezone", 13);
-    pconfig->addOption((uint8_t) 0, "-12"); 
-    pconfig->addOption((uint8_t) 1, "-11"); 
-    pconfig->addOption((uint8_t) 2, "-10");
-    pconfig->addOption((uint8_t) 3, "-9");
-    pconfig->addOption((uint8_t) 4, "-8"); 
-    pconfig->addOption((uint8_t) 5, "-7"); 
-    pconfig->addOption((uint8_t) 6, "-6"); 
-    pconfig->addOption((uint8_t) 7, "-5"); 
-    pconfig->addOption((uint8_t) 8, "-4"); 
-    pconfig->addOption((uint8_t) 9, "-3"); 
-    pconfig->addOption((uint8_t) 10, "-2"); 
-    pconfig->addOption((uint8_t) 11, "-1"); 
-    pconfig->addOption((uint8_t) 12, "0"); 
-    pconfig->addOption((uint8_t) 13, "1"); 
-    pconfig->addOption((uint8_t) 14, "2"); 
-    pconfig->addOption((uint8_t) 15, "3"); 
-    pconfig->addOption((uint8_t) 16, "4"); 
-    pconfig->addOption((uint8_t) 17, "5"); 
-    pconfig->addOption((uint8_t) 18, "6"); 
-    pconfig->addOption((uint8_t) 19, "7"); 
-    pconfig->addOption((uint8_t) 20, "8"); 
-    pconfig->addOption((uint8_t) 21, "9"); 
-    pconfig->addOption((uint8_t) 22, "10"); 
-    pconfig->addOption((uint8_t) 23, "11"); 
-    pconfig->addOption((uint8_t) 24, "12"); 
+    // pconfig = g_bleconfig.registerOption(CONFIG_TIMEZONE, "Timezone", 13);
+    // pconfig->addOption((uint8_t) 0, "-12"); 
+    // pconfig->addOption((uint8_t) 1, "-11"); 
+    // pconfig->addOption((uint8_t) 2, "-10");
+    // pconfig->addOption((uint8_t) 3, "-9");
+    // pconfig->addOption((uint8_t) 4, "-8"); 
+    // pconfig->addOption((uint8_t) 5, "-7"); 
+    // pconfig->addOption((uint8_t) 6, "-6"); 
+    // pconfig->addOption((uint8_t) 7, "-5"); 
+    // pconfig->addOption((uint8_t) 8, "-4"); 
+    // pconfig->addOption((uint8_t) 9, "-3"); 
+    // pconfig->addOption((uint8_t) 10, "-2"); 
+    // pconfig->addOption((uint8_t) 11, "-1"); 
+    // pconfig->addOption((uint8_t) 12, "0"); 
+    // pconfig->addOption((uint8_t) 13, "1"); 
+    // pconfig->addOption((uint8_t) 14, "2"); 
+    // pconfig->addOption((uint8_t) 15, "3"); 
+    // pconfig->addOption((uint8_t) 16, "4"); 
+    // pconfig->addOption((uint8_t) 17, "5"); 
+    // pconfig->addOption((uint8_t) 18, "6"); 
+    // pconfig->addOption((uint8_t) 19, "7"); 
+    // pconfig->addOption((uint8_t) 20, "8"); 
+    // pconfig->addOption((uint8_t) 21, "9"); 
+    // pconfig->addOption((uint8_t) 22, "10"); 
+    // pconfig->addOption((uint8_t) 23, "11"); 
+    // pconfig->addOption((uint8_t) 24, "12"); 
 
-    g_bleconfig.registerRGBColor(CONFIG_COLOR_TIME, "Time color", 0x00FF00, true);
-    g_bleconfig.registerRGBColor(CONFIG_COLOR_WEEKDAY, "Weekday Color", 0xFFA500, true);
-    g_bleconfig.registerRGBColor(CONFIG_COLOR_DATE, "Date color", 0xE59400, true);
-    g_bleconfig.registerRGBColor(CONFIG_COLOR_BACKGROUND, "Background color", 0xFFFFFF, true);   
+    // g_bleconfig.registerRGBColor(CONFIG_COLOR_TIME, "Time color", 0x00FF00, true);
+    // g_bleconfig.registerRGBColor(CONFIG_COLOR_WEEKDAY, "Weekday Color", 0xFFA500, true);
+    // g_bleconfig.registerRGBColor(CONFIG_COLOR_DATE, "Date color", 0xE59400, true);
+    // g_bleconfig.registerRGBColor(CONFIG_COLOR_BACKGROUND, "Background color", 0xFFFFFF, true);   
 
-    g_bleconfig.registerSlider(CONFIG_BRIGHTNESS_DAY, "Brightness Day", 80, false);
-    g_bleconfig.registerSlider(CONFIG_BRIGHTNESS_NIGHT, "Brightness Night", 30, false);
-    g_bleconfig.registerSlider(CONFIG_BRIGHTNESS_BACKGROUND, "Background Brightness", 4, false);
+    // g_bleconfig.registerSlider(CONFIG_BRIGHTNESS_DAY, "Brightness Day", 80, false);
+    // g_bleconfig.registerSlider(CONFIG_BRIGHTNESS_NIGHT, "Brightness Night", 30, false);
+    // g_bleconfig.registerSlider(CONFIG_BRIGHTNESS_BACKGROUND, "Background Brightness", 4, false);
 
     // pconfig = g_bleconfig.registerCommandOption(CONFIG_COMMAND, "Custom commands");
     // pconfig->addOption((uint8_t) UC_NORMAL, "Normal");
@@ -137,16 +136,12 @@ void WordCloxel::setup()
     sleep(2); // Wait a bit for BLE to start
 
     // Select initial effect
-    Segment& seg0 = strip.getSegment(0);
-    seg0.palette = 50; 
-    seg0.speed = 40;
-    seg0.intensity = 128;
-    seg0.custom1 = 0;
-    seg0.mode = FX_MODE_RIPPLE;
-
-    // seg0.fadeToBlackBy(20);
-
-    //seg0.beginDraw(0xFFFFU);
+    // Segment& seg0 = strip.getSegment(0);
+    // seg0.palette = 50; 
+    // seg0.speed = 40;
+    // seg0.intensity = 128;
+    // seg0.custom1 = 0;
+    // seg0.mode = FX_MODE_RIPPLE;
 }
 
 
@@ -197,11 +192,11 @@ void WordCloxel::loop()
                             m_displayMode = EDisplayMode::DM_NORMAL;
 
                             // Select a default effect
-                            Segment& seg0 = strip.getSegment(0);                            
-                            seg0.palette = 50; // Palette is NOT working! Aurora (55 = Aurora_gp)
-                            seg0.speed = 20;
-                            seg0.intensity = 128;
-                            seg0.mode = FX_MODE_2DPOLARLIGHTS;
+                            // Segment& seg0 = strip.getSegment(0);                            
+                            // seg0.palette = 50; // Palette is NOT working! Aurora (55 = Aurora_gp)
+                            // seg0.speed = 20;
+                            // seg0.intensity = 128;
+                            // seg0.mode = FX_MODE_2DPOLARLIGHTS;
                         }
                         else
                         {
@@ -219,6 +214,10 @@ void WordCloxel::loop()
                     m_vecWordsTime.push_back(m_pCloxelLayout->extra.no);
                     m_vecWordsTime.push_back(m_pCloxelLayout->extra.wifi);
                     m_displayMode = EDisplayMode::DM_NOWIFI;
+                    if (WiFi.isConnected())
+                    {
+                        m_displayMode = EDisplayMode::DM_NORMAL;
+                    }   
                     if (currentTime > RESTART_TIME_NOWIFI)
                     {
                         esp_restart();
