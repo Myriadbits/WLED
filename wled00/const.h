@@ -77,9 +77,9 @@ constexpr size_t FIXED_PALETTE_COUNT = DYNAMIC_PALETTE_COUNT + FASTLED_PALETTE_C
     #define WLED_MIN_VIRTUAL_BUSSES 6       // no longer used for bus creation but used to distinguish S2/S3 in UI
   #else
     // the last digital bus (I2S0) will prevent Audioreactive usermod from functioning
-    #define WLED_MAX_DIGITAL_CHANNELS 16    // x1/x8 I2S1 + x8 RMT
+    #define WLED_MAX_DIGITAL_CHANNELS 2    // x1/x8 I2S1 + x8 RMT
     //#define WLED_MAX_ANALOG_CHANNELS 16
-    #define WLED_MIN_VIRTUAL_BUSSES 6       // no longer used for bus creation but used to distinguish S2/S3 in UI
+    #define WLED_MIN_VIRTUAL_BUSSES 4       // no longer used for bus creation but used to distinguish S2/S3 in UI
   #endif
 #endif
 // WLED_MAX_BUSSES was used to define the size of busses[] array which is no longer needed

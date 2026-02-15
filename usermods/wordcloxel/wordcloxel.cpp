@@ -133,7 +133,7 @@ void WordCloxel::setup()
     // This will also load all previously stored settings
     g_bleconfig.start(this);
 
-    sleep(2); // Wait a bit for BLE to start
+    //sleep(2); // Wait a bit for BLE to start
 
     // Select initial effect
     // Segment& seg0 = strip.getSegment(0);
@@ -218,7 +218,7 @@ void WordCloxel::loop()
                     {
                         m_displayMode = EDisplayMode::DM_NORMAL;
                     }   
-                    if (currentTime > RESTART_TIME_NOWIFI)
+                    else if (currentTime > RESTART_TIME_NOWIFI)
                     {
                         esp_restart();
                     }
@@ -267,6 +267,9 @@ void WordCloxel::loop()
                     break;
             }            
         }
+
+        // When no effect is present, we should update the display (or handleOverlayDraw is not called often enough)
+        strip.show();
     }
 }
 
