@@ -9,8 +9,8 @@
 class BLEConfigItemDate : public BLEConfigItemUInt32
 {
 public:
-    BLEConfigItemDate(uint16_t id, const std::string name, uint16_t defaultYear, uint8_t defaultMonth, uint8_t defaultDay, bool secure = true)
-        : BLEConfigItemUInt32(id, EConfigType::CT_DATE, name, (((uint32_t) defaultDay) << 24) | (((uint32_t) defaultMonth) << 16) | ((uint32_t) defaultYear), secure)
+    BLEConfigItemDate(uint16_t id, const char *pName)
+        : BLEConfigItemUInt32(id, EConfigType::CT_DATE, pName)
     {        
     }
 

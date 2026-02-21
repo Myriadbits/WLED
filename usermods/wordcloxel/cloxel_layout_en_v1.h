@@ -139,6 +139,8 @@ static const ledpos_t ENV1_breakfast [] = { {10,6}, {11,6}, {12,6}, {13,6}, {14,
 static const ledpos_t ENV1_lunch [] = { {0,9}, {1,9}, {2,9}, {3,9}, {4,9}, {11,9}, {12,9}, {13,9}, {14,9}, WEND};
 static const ledpos_t ENV1_dinner [] = { {5,9}, {6,9}, {7,9}, {8,9}, {9,9}, {10,9}, {11,9}, {12,9}, {13,9}, {14,9}, WEND};
 
+static const ledpos_t ENV1_time [] = { {11,9}, {12,9}, {13,9}, {14,9}, WEND};
+
 //
 // EN clock layout V1
 //
@@ -203,6 +205,7 @@ static const ledclocklayout_t s_layoutEN_V1 =
         ENV1_breakfast,
         ENV1_lunch,
         ENV1_dinner,
+        ENV1_time,
     },
 
     // 10x number

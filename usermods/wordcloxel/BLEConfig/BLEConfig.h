@@ -61,6 +61,8 @@
 #include "BLEConfigItemTime.h"
 #include "BLEConfigItemCommand.h"
 
+
+
 // TODO Remove
 #define  BLECONFIG_DEBUG
 
@@ -79,8 +81,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 // Default names
-#define BLECONFIG_PREF_CONFIG                "BLEConfig"  
-#define BLECONFIG_DEFAULT_MODELNAME          "BLEConfigDevice"
+#define MAX_DEVICE_ID_LENGTH                 8
+#define MAX_DEVICE_NAME_LENGTH               16
+#define BLECONFIG_DEFAULT_MODELNAME          "WordCloxel"
 #define BLECONFIG_DEFAULT_MANUFACTURERNAME   "Myriadbits"
 #define BLECONFIG_DEFAULT_VERSION            "1.0.0"
 #define BLECONFIG_DEFAULT_APPEARANCE         256 // Default to clock see also: https://developer.nordicsemi.com/nRF5_SDK/nRF51_SDK_v4.x.x/doc/html/group___b_l_e___a_p_p_e_a_r_a_n_c_e_s.html
@@ -120,24 +123,13 @@ public:
 class BLEConfig : public BLESecurityCallbacks, public BLECharacteristicCallbacks, public BLEServerCallbacks
 {
 public:
-    BLEConfig(const std::string model = BLECONFIG_DEFAULT_MODELNAME, const std::string manufacturer = BLECONFIG_DEFAULT_MANUFACTURERNAME, const std::string version = BLECONFIG_DEFAULT_VERSION, int appearance = BLECONFIG_DEFAULT_APPEARANCE);
-
-    // Methods to register a new config item:
-    //----------------------------------------------------------------
-    // Please note that after adding/removing a configuration item, you have to 'forget' the bluetooth connection on your smartphone to the device and
-    // reconnect/pair the device or the changes will NOT be visible!!
-    //----------------------------------------------------------------
-    BLEConfigItemWiFi*    registerWifi(uint8_t id, const std::string name, bool secure = true);    
-    BLEConfigItemString*  registerString(uint8_t id, const std::string name, const std::string defaultValue,bool secure = true);    
-    BLEConfigItemUInt32*  registerValue(uint8_t id, const std::string name, uint32_t defaultValue, bool secure = true);    
-    BLEConfigItemUInt32*  registerRGBColor(uint8_t id, const std::string name, uint32_t defaultColor, bool secure = true);    
-    BLEConfigItemUInt8*   registerSlider(uint8_t id, const std::string name, uint8_t defaultValue, bool secure = true);    
-    BLEConfigItemOption*  registerOption(uint8_t id, const std::string name, uint8_t defaultValue, bool secure = true);    
-    BLEConfigItemDate*    registerDate(uint8_t id, const std::string name, uint16_t defaultYear = 0, uint8_t defaultMonth = 0, uint8_t defaultDay = 0, bool secure = true);    
-    BLEConfigItemTime*    registerTime(uint8_t id, const std::string name, uint8_t defaultHour = 0, uint8_t defaultMinute = 0, uint8_t defaultSecond = 0, bool secure = true);    
-    BLEConfigItemCommand* registerCommandOption(uint8_t id, const std::string name, bool secure = true);
+    BLEConfig(const char *pModel = BLECONFIG_DEFAULT_MODELNAME, 
+              const char *pManufacturer = BLECONFIG_DEFAULT_MANUFACTURERNAME, 
+              const char *pVersion = BLECONFIG_DEFAULT_VERSION, 
+              int appearance = BLECONFIG_DEFAULT_APPEARANCE);
     
     BLEConfigItemBase*    getConfigItem(const uint8_t id);
+    void                  addConfigItem(BLEConfigItemBase* pitem);
 
     uint32_t              getConfigValue(const uint8_t id);
     std::string           getConfigValueString(const uint8_t id);
@@ -149,21 +141,6 @@ public:
 
     // Start the BLE Config services
     void start(IBLEConfigCallbacks* pCallBacks);   
-
-    // Setters
-    void setProductName(const std::string model) { m_model = model; }
-    void setManufacturerName(const std::string manufacturer) { m_manufacturer = manufacturer; }
-    void setDeviceId(const std::string deviceId) { m_deviceId = deviceId; }
-    void setVersion(const std::string version) { m_version = version; }
-    void setAppearance(int appearance) { m_appearance = appearance; }
-
-    // Getters
-    std::string getProductName() {return  m_model; }
-    std::string getManufacturerName() {return m_manufacturer; }
-    std::string getDeviceId() { return m_deviceId; }
-    std::string getVersion() { return m_version; }
-    int getAppearance() { return m_appearance; }
-    bool isDeviceConnected() { return m_isDeviceConnected; }
 
 protected:
 	virtual uint32_t onPassKeyRequest();
@@ -190,11 +167,10 @@ private:
     std::vector<BLEConfigItemBase*>     m_vecConfigItems;
 
     // General data
-    std::string             m_model;
-    std::string             m_manufacturer;
-    std::string             m_deviceId;
-    std::string             m_deviceName;
-    std::string             m_version;
-    int                     m_appearance;
-    bool                    m_isDeviceConnected;
+    const char      *m_pModel;
+    const char      *m_pManufacturer;
+    const char      *m_pVersion;
+    char             m_pDeviceName[MAX_DEVICE_NAME_LENGTH] = {0};
+    int              m_appearance;
+    bool             m_isDeviceConnected;
 };

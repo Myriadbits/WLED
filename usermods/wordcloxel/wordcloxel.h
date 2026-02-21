@@ -8,7 +8,7 @@ typedef enum EDisplayMode
 {
     DM_NONE = 0,
     DM_INITIALIZING, 
-    DM_NOWIFI,
+    DM_NOTIME,
     DM_NORMAL
 } EDisplayMode;
 
@@ -29,6 +29,8 @@ typedef enum EMessageMode
 #define CONFIG_TIMEZONE                 5
 #define CONFIG_DAYLIGHTSAVING           6
 
+#define CONFIG_EFFECT                   7
+
 #define CONFIG_COLOR_TIME               10
 #define CONFIG_COLOR_WEEKDAY            11
 #define CONFIG_COLOR_DATE               12
@@ -46,6 +48,12 @@ typedef enum EMessageMode
 
 #define CONFIG_COMMAND                  42
 
+#define WORDCLOCK_MANUFACTURER          "www.cloxel.nl"
+#define WORDCLOCK_MODEL                 "Wordcloxel"
+#define WORDCLOCK_VERSION               "2.1.0"
+#define WORDCLOCK_DEFAULTNAME           "Wordcloxel"
+#define WORDCLOCK_DEFAULTLOCATION       "Home"
+
 /*
  * Word cloxel usermod to display the correct time & date in words on a cloxel matrix
  */
@@ -55,6 +63,9 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
     unsigned long m_lastUpdateTime {0};
     unsigned long m_startOfInitializedTime {0};
     int m_displayCounter {0};
+    uint8_t m_introY {5};
+    uint8_t m_introX {0};
+
     bool m_fInitialized {false};
     EDisplayMode m_displayMode {EDisplayMode::DM_INITIALIZING};
     EMessageMode m_messageMode {EMessageMode::EM_NONE};
@@ -67,6 +78,14 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
     static const char _txtTime[];
 
     static const char _txtBrightness[];
+
+    // BLE Config items
+    BLEConfig  m_bleconfig {WORDCLOCK_MODEL, WORDCLOCK_MANUFACTURER, WORDCLOCK_VERSION, 256}; // 256 = Clock TODO VERSION
+    BLEConfigItemWiFi m_bleWiFi {CONFIG_WIFI, "WiFi SSID"};
+    BLEConfigItemOption m_bleLayout {CONFIG_LAYOUT, CT_OPTION, "Clock layout", 0};
+    BLEConfigItemOption m_bleDaylightSaving {CONFIG_DAYLIGHTSAVING, CT_OPTION, "Daylight saving zone", 1};
+    BLEConfigItemOption m_bleEffect {CONFIG_EFFECT, CT_OPTION, "Effect", 0};
+    
 
     // Config variables
     bool m_configEnabled {true};
@@ -108,6 +127,8 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
     virtual void onConfigItemChanged(BLEConfigItemBase *pconfigItem);
 
 private:
-    void AddWordsToLeds(std::vector<const ledpos_t*> rVecWords, CRGB defaultColor);
+    void showCloxelIntro();
+    void addWordToLeds(const ledpos_t* pWord, CRGB color);
+    void addWordsToLeds(std::vector<const ledpos_t*> rVecWords, CRGB defaultColor);
 };
 

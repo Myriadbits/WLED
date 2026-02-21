@@ -9,8 +9,8 @@
 class BLEConfigItemWiFi : public BLEConfigItemOption
 {
 public:
-    BLEConfigItemWiFi(uint16_t id, const std::string name, bool secure = true)
-        : BLEConfigItemOption(id, EConfigType::CT_WIFI, name, 0, secure)
+    BLEConfigItemWiFi(uint16_t id, const char *pName)
+        : BLEConfigItemOption(id, EConfigType::CT_WIFI, pName)
     {        
     }
 

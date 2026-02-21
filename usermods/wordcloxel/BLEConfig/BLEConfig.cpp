@@ -19,76 +19,18 @@ inline size_t getFreeHeapSize() { return heap_caps_get_free_size(MALLOC_CAP_INTE
 // @param productName The name of this product
 // @param version The version of this product
 // @param appearance The appearance, see: https://developer.nordicsemi.com/nRF5_SDK/nRF51_SDK_v4.x.x/doc/html/group___b_l_e___a_p_p_e_a_r_a_n_c_e_s.html
-BLEConfig::BLEConfig(const std::string model, const std::string manufacturer, const std::string version, int appearance)
-    : m_model(model)
-    , m_manufacturer(manufacturer)
-    , m_version(version)
+BLEConfig::BLEConfig(const char *pModel, const char *pManufacturer, const char *pVersion, int appearance)
+    : m_pModel(pModel)
+    , m_pManufacturer(pManufacturer)
+    , m_pVersion(pVersion)
     , m_appearance(appearance)
     , m_isDeviceConnected(false)
 {    
 }
 
-BLEConfigItemWiFi* BLEConfig::registerWifi(uint8_t id, const std::string name, bool secure)
+void BLEConfig::addConfigItem(BLEConfigItemBase* pitem)
 {
-    BLEConfigItemWiFi *pitem = new BLEConfigItemWiFi(id, name, secure);
     m_vecConfigItems.push_back(pitem);
-    return pitem;
-}
-
-BLEConfigItemString* BLEConfig::registerString(uint8_t id, const std::string name, const std::string defaultValue,bool secure)
-{
-    BLEConfigItemString *pitem = new BLEConfigItemString(id, name, defaultValue, secure);
-    m_vecConfigItems.push_back(pitem);
-    return pitem;
-}
-
-BLEConfigItemUInt32* BLEConfig::registerValue(uint8_t id, const std::string name, uint32_t defaultValue, bool secure)
-{
-    BLEConfigItemUInt32 *pitem = new BLEConfigItemUInt32(id, name, defaultValue, secure);
-    m_vecConfigItems.push_back(pitem);
-    return pitem;
-}
-
-BLEConfigItemUInt32* BLEConfig::registerRGBColor(uint8_t id, const std::string name, uint32_t defaultColor, bool secure)
-{
-    BLEConfigItemUInt32 *pitem = new BLEConfigItemUInt32(id, CT_RGBCOLOR, name, defaultColor, secure);
-    m_vecConfigItems.push_back(pitem);
-    return pitem;
-}
-
-BLEConfigItemUInt8* BLEConfig::registerSlider(uint8_t id, const std::string name, uint8_t defaultValue, bool secure)
-{
-    BLEConfigItemUInt8 *pitem = new BLEConfigItemUInt8(id, CT_SLIDER, name, defaultValue, secure);
-    m_vecConfigItems.push_back(pitem);
-    return pitem;
-}
-
-BLEConfigItemOption* BLEConfig::registerOption(uint8_t id, const std::string name, uint8_t defaultValue, bool secure)
-{
-    BLEConfigItemOption *pitem = new BLEConfigItemOption(id, name, defaultValue, secure);
-    m_vecConfigItems.push_back(pitem);
-    return pitem;
-}
-
-BLEConfigItemDate* BLEConfig::registerDate(uint8_t id, const std::string name, uint16_t defaultYear, uint8_t defaultMonth, uint8_t defaultDay, bool secure)
-{
-    BLEConfigItemDate *pitem = new BLEConfigItemDate(id, name, defaultYear, defaultMonth, defaultDay, secure);
-    m_vecConfigItems.push_back(pitem);
-    return pitem;
-}
-
-BLEConfigItemTime* BLEConfig::registerTime(uint8_t id, const std::string name, uint8_t defaultHour, uint8_t defaultMinute, uint8_t defaultSecond, bool secure)
-{
-    BLEConfigItemTime *pitem = new BLEConfigItemTime(id, name, defaultHour, defaultMinute, defaultSecond, secure);
-    m_vecConfigItems.push_back(pitem);
-    return pitem;
-}
-
-BLEConfigItemCommand* BLEConfig::registerCommandOption(uint8_t id, const std::string name, bool secure)
-{
-    BLEConfigItemCommand *pitem = new BLEConfigItemCommand(id, name, secure);
-    m_vecConfigItems.push_back(pitem);
-    return pitem;
 }
 
 //
@@ -175,24 +117,23 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
     m_pCallBacks = pCallBacks;
 
     // Default device ID is the serial number of the Chip
-    if (m_deviceId.empty())
+    char deviceId[MAX_DEVICE_ID_LENGTH] = {0};
+    if (strlen(m_pDeviceName) == 0)
     {
         uint64_t chipid = ESP.getEfuseMac(); //The chip ID is essentially its MAC address(length: 6 bytes).
         // Chip ID is 64 bit, I find that a bit large for an ID, make it 16 bit (I know, there is a chance some are the same)
-        char hex[32];
-        snprintf(hex, 32, "%04X", (uint16_t)((chipid >> 32) & 0xFFFF) ^ (uint16_t)((chipid >> 16) & 0xFFFF) ^ (uint16_t)(chipid & 0xFFFF));
-        m_deviceId = std::string(hex);
+        snprintf(deviceId, 8, "%04X", (uint16_t)((chipid >> 32) & 0xFFFF) ^ (uint16_t)((chipid >> 16) & 0xFFFF) ^ (uint16_t)(chipid & 0xFFFF));
+        snprintf(m_pDeviceName, MAX_DEVICE_NAME_LENGTH, "%s-%s", m_pModel, deviceId);
     }
-    m_deviceName = m_model + "-" + m_deviceId;
 
     BLECONFIG_LOG("Starting BLE Config");
-    BLECONFIG_LOG("- Product:  %s", m_model.c_str());
-    BLECONFIG_LOG("- DeviceId: %s", m_deviceId.c_str());
-    BLECONFIG_LOG("- DeviceName: %s", m_deviceName.c_str());
-    BLECONFIG_LOG("- Version:  %s", m_version.c_str());
+    BLECONFIG_LOG("- Product:  %s", m_pModel);
+    BLECONFIG_LOG("- DeviceId: %s", deviceId);
+    BLECONFIG_LOG("- DeviceName: %s", m_pDeviceName);
+    BLECONFIG_LOG("- Version:  %s", m_pVersion);
    
     //Initialize the BLE stack
-    BLEDevice::init(m_deviceName.c_str());    
+    BLEDevice::init(m_pDeviceName);
     BLECONFIG_LOG("BLE Initialized");
 
     m_pBLEServer = BLEDevice::createServer();
@@ -208,19 +149,20 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
     // Manufacturer
     BLECharacteristic *pCharManufacturer = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x2a29), BLECharacteristic::PROPERTY_READ);
     pCharManufacturer->setAccessPermissions(ESP_GATT_PERM_READ);
-    pCharManufacturer->setValue(m_manufacturer);
+    pCharManufacturer->setValue((uint8_t*) m_pManufacturer, strlen(m_pManufacturer));
+    
     // Model
     BLECharacteristic *pCharModel = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x2a24), BLECharacteristic::PROPERTY_READ);
     pCharModel->setAccessPermissions(ESP_GATT_PERM_READ);
-    pCharModel->setValue(m_model);
+    pCharModel->setValue(m_pModel);
     // Serial number
     BLECharacteristic *pCharSerialNumber = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x2a25), BLECharacteristic::PROPERTY_READ);
     pCharSerialNumber->setAccessPermissions(ESP_GATT_PERM_READ);
-    pCharSerialNumber->setValue(m_deviceId);  
+    pCharSerialNumber->setValue(deviceId);  
     // Software revision string    
     BLECharacteristic *pCharRevision = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x2a28), BLECharacteristic::PROPERTY_READ);
     pCharRevision->setAccessPermissions(ESP_GATT_PERM_READ);
-    pCharRevision->setValue(m_version);
+    pCharRevision->setValue(m_pVersion);
       
     // Start all device info
     pDeviceInfoService->start();
@@ -260,7 +202,7 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
     pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
     BLEDevice::setSecurityCallbacks(this);
 
-     BLECONFIG_LOG("Security setup completed");
+    BLECONFIG_LOG("Security setup completed");
 }
 
 //
@@ -283,7 +225,7 @@ void BLEConfig::addConfigCharacteristic(BLEService *pBLEConfigService, BLEConfig
 
     // Value consist
     uint8_t byteCount = pitem->updateCharacteristicValue();
-    BLECONFIG_LOG("- Adding characteristic for '%s' [%d bytes]", pitem->getName().c_str(), byteCount);
+    BLECONFIG_LOG("- Adding characteristic for '%s' [%d bytes]", pitem->getName(), byteCount);
 
     // snprintf(charName, 64, BLECONFIG_CHAR_CONFIG, n + 0x0101); // Do NOT start at 0!
     // BLEDescriptor *pdesc = new BLEDescriptor(charName);       
@@ -311,16 +253,13 @@ void BLEConfig::onWrite(BLECharacteristic* pCharacteristic)
             {
                 it->decode(pCharacteristic->getValue());//, pCharacteristic->getData());
 
-                BLECONFIG_LOG("Setting config item [%d]: '%s' to '%s'", uid, it->getName().c_str(), it->valueToString().c_str());
-
-                // Store the new changed value
-                it->store();
+                //BLECONFIG_LOG("Setting config item [%d]: '%s' to '%s'", uid, it->getName().c_str(), it->valueToString().c_str());
 
                 // Forward to the callbacks that the config item is changed!
                 if (m_pCallBacks != NULL)
                     m_pCallBacks->onConfigItemChanged(it);
 
-                // Now set the value back to the full-descriptive text
+                // Now set the value back to the full-descriptive text <= TODO this seems weird....
                 it->updateCharacteristicValue();
                 found = true;
                 break;
@@ -351,27 +290,27 @@ void BLEConfig::onDisconnect(BLEServer* pServer)
 
 uint32_t BLEConfig::onPassKeyRequest()
 {
-    BLECONFIG_LOG("OnPassKeyRequest");
+    BLECONFIG_LOG("==> OnPassKeyRequest");
     return 123456;
 }
 
 void BLEConfig::onPassKeyNotify(uint32_t pass_key)
 {       
-    BLECONFIG_LOG("The passkey Notify number:%d", pass_key); // <--- this one
+    BLECONFIG_LOG("==> The passkey Notify number:%d", pass_key); // <--- this one
     if (m_pCallBacks)
         m_pCallBacks->onDisplayPassKey(pass_key);
 }
 
 bool BLEConfig::onConfirmPIN(uint32_t pass_key)
 {
-    BLECONFIG_LOG("The passkey YES/NO number:%d", pass_key);
+    BLECONFIG_LOG("==> The passkey YES/NO number:%d", pass_key);
     vTaskDelay(1000);
     return true;
 }
 
 bool BLEConfig::onSecurityRequest()
 {
-    BLECONFIG_LOG("Security Request\n");
+    BLECONFIG_LOG("==> Security Request\n");
     return true;
 }
 
@@ -383,7 +322,7 @@ void BLEConfig::onAuthenticationComplete(esp_ble_auth_cmpl_t auth_cmpl)
         //esp_log_buffer_hex(LOG_TAG, auth_cmpl.bd_addr, sizeof(auth_cmpl.bd_addr));
         BLECONFIG_LOG("address type = %d", auth_cmpl.addr_type);
     }
-    BLECONFIG_LOG("Pair status = %s", auth_cmpl.success ? "success" : "fail");
+    BLECONFIG_LOG("==> Pair status = %s", auth_cmpl.success ? "success" : "fail");
 
     if (m_pCallBacks)
         m_pCallBacks->onBluetoothConnection(auth_cmpl.success);

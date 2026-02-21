@@ -86,7 +86,8 @@ typedef struct {
     const ledpos_t *heart;
     const ledpos_t *breakfast;
     const ledpos_t *lunch;
-    const ledpos_t *dinner;    
+    const ledpos_t *dinner;
+    const ledpos_t *time;
 } ledextra_t;
 
 // empty led position

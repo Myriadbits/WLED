@@ -4,11 +4,11 @@
 #include "cloxel_layout_en_v1.h"
 #include "cloxel_layout_nl_v1.h"
 
-#define WORDCLOCK_MANUFACTURER    "www.cloxel.nl"
-#define WORDCLOCK_MODEL           "Wordcloxel"
-#define WORDCLOCK_VERSION         "2.1.0"
-#define WORDCLOCK_DEFAULTNAME     "Wordcloxel"
-#define WORDCLOCK_DEFAULTLOCATION "Home"
+// #define WORDCLOCK_MANUFACTURER    "www.cloxel.nl"
+// #define WORDCLOCK_MODEL           "Wordcloxel"
+// #define WORDCLOCK_VERSION         "2.1.0"
+// #define WORDCLOCK_DEFAULTNAME     "Wordcloxel"
+// #define WORDCLOCK_DEFAULTLOCATION "Home"
 
 // strings to reduce flash memory usage (used more than twice)
 const char WordCloxel::_txtName[]  PROGMEM = "Wordcloxel";
@@ -24,13 +24,15 @@ constexpr float_t NUMBER_OF_SECOND_PULSES_PER_MINUTE = 20.0f;
 constexpr uint32_t NUMBER_OF_MILLIS_PER_PULSE = 3000;
 constexpr uint32_t RESTART_TIME_NOWIFI = 300000; // ms
 
+static CRGB g_colorLoop[] {CRGB::Olive, CRGB::Navy, CRGB::LightBlue, CRGB::Aqua, CRGB::Teal, CRGB::Green, CRGB::Silver, CRGB::Yellow, 
+                           CRGB::Orange, CRGB::Red, CRGB::Maroon, CRGB::Fuchsia, CRGB::Purple, CRGB::Magenta, CRGB::White, CRGB::Lime};
+
 constexpr char MY_RIPPLE_DATA[] PROGMEM = "Ripple@!,Wave #,Blur,,,,Overlay;,!;!;1;c1=0";
 
 //constexpr float_t SECOND_PULSE_DURATION = 60000.0 / NUMBER_OF_SECOND_PULSES_PER_MINUTE;
 
 // The BLE Config library
 // Without BLE: 98620
-BLEConfig  g_bleconfig(WORDCLOCK_MODEL, WORDCLOCK_MANUFACTURER, WORDCLOCK_VERSION, 256); // 256 = Clock TODO VERSION
 // 94452
 
 namespace
@@ -70,22 +72,32 @@ void WordCloxel::setup()
 
     // 25560 => 61360
     // Load/initialize all BLE Config settings
-    g_bleconfig.registerWifi(CONFIG_WIFI, "WiFi SSID");
+    m_bleconfig.addConfigItem(&m_bleWiFi);
+    m_bleconfig.addConfigItem(&m_bleLayout);
+    m_bleconfig.addConfigItem(&m_bleDaylightSaving);
+    //m_bleconfig.addConfigItem(&m_bleEffect);
 
-    g_bleconfig.registerString(CONFIG_LOCATION, "Location", std::string(WORDCLOCK_DEFAULTLOCATION), true);
+    //m_bleconfig.registerString(CONFIG_LOCATION, "Location", std::string(WORDCLOCK_DEFAULTLOCATION), true);
+
+    //BLEConfigItemUInt32 *pconfig32 = m_bleconfig.registerValue(CONFIG_EFFECT, "Effect", 0);
 
     // 23964
-    BLEConfigItemOption *pconfig = g_bleconfig.registerOption(CONFIG_LAYOUT, "Clock layout", 3);
-    pconfig->addOption((uint8_t) 0, "English V1");
-    pconfig->addOption((uint8_t) 1, "Dutch V1");
+    // BLEConfigItemOption *pconfig = m_bleconfig.registerOption(CONFIG_LAYOUT, "Clock layout", 3);
+    m_bleLayout.addOption((uint8_t) 0, "English V1");
+    m_bleLayout.addOption((uint8_t) 1, "Dutch V1");
 
     // 22752
-    pconfig = g_bleconfig.registerOption(CONFIG_DAYLIGHTSAVING, "Daylight saving zone", 0);
-    pconfig->addOption((uint8_t) 0, "Off"); 
-    pconfig->addOption((uint8_t) 1, "Central European"); 
-    pconfig->addOption((uint8_t) 2, "United Kingdom"); 
-    pconfig->addOption((uint8_t) 3, "Australia");
-    pconfig->addOption((uint8_t) 4, "US"); 
+    // pconfig = m_bleconfig.registerOption(CONFIG_DAYLIGHTSAVING, "Daylight saving zone", 0);
+    m_bleDaylightSaving.addOption((uint8_t) 0, "Off"); 
+    m_bleDaylightSaving.addOption((uint8_t) 1, "Central European"); 
+    m_bleDaylightSaving.addOption((uint8_t) 2, "United Kingdom"); 
+    m_bleDaylightSaving.addOption((uint8_t) 3, "Australia");
+    m_bleDaylightSaving.addOption((uint8_t) 4, "US"); 
+
+    // m_bleEffect.addOption((uint8_t) 0, "Solid");
+    // m_bleEffect.addOption((uint8_t) 1, "PS Impact");
+    // m_bleEffect.addOption((uint8_t) 2, "Ripple");
+    // m_bleEffect.addOption((uint8_t) 3, "Polar lights");
       
     // pconfig = g_bleconfig.registerOption(CONFIG_TIMEZONE, "Timezone", 13);
     // pconfig->addOption((uint8_t) 0, "-12"); 
@@ -131,7 +143,7 @@ void WordCloxel::setup()
 
     // Start the BLE Config stuff
     // This will also load all previously stored settings
-    g_bleconfig.start(this);
+    m_bleconfig.start(this);
 
     //sleep(2); // Wait a bit for BLE to start
 
@@ -186,35 +198,21 @@ void WordCloxel::loop()
                     //DEBUG_PRINTF("%ld, Counter %d\n", currentTime, m_displayCounter);
                     if (m_displayCounter > CLOXEL_STARTUP_TOTAL_TICKS)
                     {                      
-                        m_displayCounter = 0;
-                        if (WLED_CONNECTED && year(localTime) > 2025)
+                        if (year(localTime) > 2025)
                         {
                             m_displayMode = EDisplayMode::DM_NORMAL;
-
-                            // Select a default effect
-                            // Segment& seg0 = strip.getSegment(0);                            
-                            // seg0.palette = 50; // Palette is NOT working! Aurora (55 = Aurora_gp)
-                            // seg0.speed = 20;
-                            // seg0.intensity = 128;
-                            // seg0.mode = FX_MODE_2DPOLARLIGHTS;
                         }
                         else
                         {
-                            m_displayMode = EDisplayMode::DM_NOWIFI;
+                            m_displayMode = EDisplayMode::DM_NOTIME;
                         }
-                    }
-                    else
-                    {                        
-                        m_vecWordsTime.push_back(m_pCloxelLayout->extra.myriadclock);
-                        m_vecWordsTime.push_back(m_pCloxelLayout->extra.word);
                     }
                     break;
 
-                case EDisplayMode::DM_NOWIFI:
+                case EDisplayMode::DM_NOTIME:
                     m_vecWordsTime.push_back(m_pCloxelLayout->extra.no);
-                    m_vecWordsTime.push_back(m_pCloxelLayout->extra.wifi);
-                    m_displayMode = EDisplayMode::DM_NOWIFI;
-                    if (WiFi.isConnected())
+                    m_vecWordsTime.push_back(m_pCloxelLayout->extra.time);
+                    if (year(localTime) > 2025)
                     {
                         m_displayMode = EDisplayMode::DM_NORMAL;
                     }   
@@ -276,21 +274,60 @@ void WordCloxel::loop()
 //
 // Add a single word to the display/leds
 // customParam can be any value, normal operation when ColorHandler is not overriden: customParam is the color
-void WordCloxel::AddWordsToLeds(std::vector<const ledpos_t*> rVecWords, CRGB color) 
+void WordCloxel::addWordToLeds(const ledpos_t* pWord, CRGB color) 
+{
+    uint8_t charIndex = 0;
+    ledpos_t ledPos = pWord[charIndex];
+    while (ledPos.x >= 0 && ledPos.y >= 0)
+    {
+        // Led numbers are inverted left to right every other row:     
+        strip.setPixelColorXY(ledPos.x, ledPos.y, color);
+        
+        // Next char
+        charIndex++;
+        ledPos = pWord[charIndex];
+    }
+}
+
+//
+// Add a single word to the display/leds
+// customParam can be any value, normal operation when ColorHandler is not overriden: customParam is the color
+void WordCloxel::addWordsToLeds(std::vector<const ledpos_t*> rVecWords, CRGB color) 
 {
     for(const ledpos_t* pCurrentWord : rVecWords)
     {
-        uint8_t charIndex = 0;
-        ledpos_t ledPos = pCurrentWord[charIndex];
-        while (ledPos.x >= 0 && ledPos.y >= 0)
+        addWordToLeds(pCurrentWord, color);
+    }
+}
+
+/// @brief Show the cloxel intro animation, which comes in from the left
+void WordCloxel::showCloxelIntro()
+{
+    strip.fill(BLACK);
+
+    float value = 0;
+    m_displayCounter++;
+    if (m_displayCounter < CLOXEL_STARTUP_CYCLE_TICKS * CLOXEL_STARTUP_CYCLES)
+    {
+        value = 127 * (1.0f - cos_approx(m_displayCounter * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS));        
+    }
+    //CRGB col = color_fade(CLOXEL_STARTUP_COLOR, (uint8_t)value);
+    if (m_introY < 15)
+    {
+        m_introX++;
+        if (m_introX > 15)
         {
-            // Led numbers are inverted left to right every other row:     
-            strip.setPixelColorXY(ledPos.x, ledPos.y, color);
-            
-            // Next char
-            charIndex++;
-            ledPos = pCurrentWord[charIndex];
-        }
+            m_introX = 0;
+            m_introY++;
+        }             
+        //strip.setPixelColorXY(m_introX, m_introY, color_fade(CLOXEL_STARTUP_COLOR, (uint8_t)value));
+        strip.setPixelColorXY(m_introX, m_introY, color_fade((uint32_t)g_colorLoop[(m_introY - 5) % 16], (uint8_t)value));
+    }
+
+    for(uint8_t y = 5; y < m_introY; y++)
+    {
+        //strip.setPixelColorXY(15, y, color_fade(CLOXEL_STARTUP_COLOR, (uint8_t)value));
+        strip.setPixelColorXY(15, y, color_fade((uint32_t)g_colorLoop[(y - 5) % 16], (uint8_t)value));
     }
 }
 
@@ -304,24 +341,19 @@ void WordCloxel::handleOverlayDraw()
     // Only when this module is enabled
     if (m_configEnabled)
     {
+        m_displayCounter++;
+
         // At startup, always show cloxel text
         if (m_displayMode == EDisplayMode::DM_INITIALIZING)
         {
-            strip.fill(BLACK);
-            m_displayCounter++;
-            if (m_displayCounter < CLOXEL_STARTUP_CYCLE_TICKS * CLOXEL_STARTUP_CYCLES)
-            {
-                float value = 127 * (1.0f - cos_approx(m_displayCounter * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS));
-                AddWordsToLeds(m_vecWordsTime, color_fade(CLOXEL_STARTUP_COLOR, (uint8_t)value));
-            }
+            showCloxelIntro();
         }
-        else if (m_displayMode == EDisplayMode::DM_NOWIFI)
+        else if (m_displayMode == EDisplayMode::DM_NOTIME)
         {
             strip.fill(BLACK);
-            m_displayCounter++;
             float value = 127 * (cos_approx(m_displayCounter * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS) + 1.0f);
             CRGB color = RGBW32((int) value, 0, 0, 0);
-            AddWordsToLeds(m_vecWordsTime, color);
+            addWordsToLeds(m_vecWordsTime, color);
         }
         else
         {
@@ -335,15 +367,24 @@ void WordCloxel::handleOverlayDraw()
                 strip.setPixelColor(i, color_fade(c1, m_configBackgroundFade)); // blank out the segment
             }   
             // Add all words to the clock
-            AddWordsToLeds(m_vecWordsTime, m_configTimeColor);
-            AddWordsToLeds(m_vecWordsWeekday, m_configWeekdayColor);
-            AddWordsToLeds(m_vecWordsDate, m_configDateColor);
+            addWordsToLeds(m_vecWordsTime, m_configTimeColor);
+            addWordsToLeds(m_vecWordsWeekday, m_configWeekdayColor);
+            addWordsToLeds(m_vecWordsDate, m_configDateColor);
 
             unsigned long milliOnly = millis() % NUMBER_OF_MILLIS_PER_PULSE; 
             float value = 127 * (1.0f + cos_approx(milliOnly * M_TWOPI / (float_t)NUMBER_OF_MILLIS_PER_PULSE));
-            AddWordsToLeds(m_vecWordsSecond, color_fade((uint32_t) m_configTimeColor, (uint8_t)value));
+            addWordsToLeds(m_vecWordsSecond, color_fade((uint32_t) m_configTimeColor, (uint8_t)value));
 
-            AddWordsToLeds(m_vecWordsExtra, CRGB::Red);
+            addWordsToLeds(m_vecWordsExtra, CRGB::Red);
+
+            if (!WiFi.isConnected())
+            {
+                // Is this really such an issue that we need to show it on the clock? Maybe just show a small Wifi signal icon?
+                float value2 = 127 * (cos_approx(m_displayCounter * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS) + 1.0f);
+                CRGB color = RGBW32((int) value2, 0, 0, 0);
+                addWordToLeds(m_pCloxelLayout->extra.no, color);
+                addWordToLeds(m_pCloxelLayout->extra.wifi, color);
+            }
         }
     }
 }

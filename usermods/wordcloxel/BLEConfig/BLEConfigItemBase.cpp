@@ -7,12 +7,11 @@
 
 //
 // Constructor, create/fill this config item
-BLEConfigItemBase::BLEConfigItemBase(uint16_t id, const EConfigType type, const std::string name, bool secure)        
+BLEConfigItemBase::BLEConfigItemBase(uint16_t id, const EConfigType type, const char *pName)
     : m_id(id)
     , m_eType(type)
-    , m_sName(name)
-    , m_fSecure(secure)
-{        
+    , m_pName(pName)
+{
 }
 
 //
@@ -31,16 +30,16 @@ int BLEConfigItemBase::encode(uint8_t *pdata, int dataLen)
 
     // Add the flags
     pdata[2] = 0x00;
-    if (m_fSecure) pdata[2] |= 0x01;
+    pdata[2] |= 0x01; // Secure or not
 
     // Start at byte 3
     int idx = 3;
 
-    // Add the config item name    
-    slen = (uint8_t) std::min((int) m_sName.length(), 0xF0);
+    // Add the config item name
+    slen = (uint8_t) std::min((int) strlen(m_pName), 0xF0);
     pdata[idx++] = slen;
     for(int n = 0; n < slen; n++)
-        pdata[idx++] = (uint8_t) m_sName.c_str()[n];
+        pdata[idx++] = (uint8_t) m_pName[n];
 
     // Add the data
     return onEncodeData(pdata, dataLen, idx);

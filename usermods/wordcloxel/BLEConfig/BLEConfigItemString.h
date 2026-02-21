@@ -9,16 +9,14 @@
 class BLEConfigItemString : public BLEConfigItemBase
 {
 public:
-    BLEConfigItemString(uint16_t id, const std::string name, const std::string defaultValue, bool secure = true)
-        : BLEConfigItemBase(id, EConfigType::CT_STRING, name, secure)
-        , m_valueStringDefault(defaultValue)
+    BLEConfigItemString(uint16_t id, const char *pName)
+        : BLEConfigItemBase(id, EConfigType::CT_STRING, pName)
     {        
     }
 
     // When value fits is a string
     std::string getValue();
     void setValue(const std::string newValue) { m_valueString = newValue; }
-    void setDefaultValue(const std::string newValue) { m_valueStringDefault = newValue; }
 
 protected:
     virtual int onEncodeData(uint8_t *pdata, int dataLen, int idx);
@@ -29,5 +27,4 @@ protected:
 
 private:
     std::string     m_valueString;
-    std::string     m_valueStringDefault;
 };

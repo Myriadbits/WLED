@@ -3,7 +3,7 @@
 #include <Preferences.h> // We are dependent upon the preferences
 #include "BLECharacteristic.h"
 
-enum EConfigType
+enum EConfigType : uint8_t
 {
     CT_UNKNOWN,            
     CT_STRING,           // String
@@ -39,20 +39,16 @@ enum EConfigType
 class BLEConfigItemBase
 {
 public:
-    BLEConfigItemBase(uint16_t id, const EConfigType type, const std::string name, bool secure = true);
+    BLEConfigItemBase(uint16_t id, const EConfigType type, const char *pName);
 
     // Properties
     uint16_t getId() { return m_id;}
     EConfigType getType() { return m_eType;}
 
-    bool getIsSecure() { return m_fSecure;}
-    void setIsSecure(bool secure) { m_fSecure = secure;}
-    
-    std::string getName() { return m_sName;}    
-    void setName(std::string name) { m_sName = name;}    
-
     void setCharacteristic(BLECharacteristic* pChar) { m_pChar = pChar; }
     uint8_t updateCharacteristicValue(bool shouldNotify = false);
+
+    char* getName() { return (char*) m_pName; }
 
 private:
     int encode(uint8_t *pdata, int dataLen);
@@ -73,8 +69,7 @@ protected:
 private:
     uint16_t            m_id; // Unique ID 
     EConfigType         m_eType; // The config item type
-    std::string         m_sName; // Short name of this config item
-    std::string         m_sSynopsis; // Short description
-    bool                m_fSecure; // This config item requires a secure connection
+    const char*         m_pName; // Pointer to the name
+    const char*         m_pSynopsis; // Short description
     BLECharacteristic*  m_pChar; // Pointer to the characteristic
 };

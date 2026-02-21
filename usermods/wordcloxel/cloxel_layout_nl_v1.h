@@ -134,6 +134,8 @@ static const ledpos_t NLV1_breakfast [] = { {6,3}, {7,3}, {8,3}, {9,3}, {10,3}, 
 static const ledpos_t NLV1_lunch [] = { {0,9}, {1,9}, {2,9}, {3,9}, {4,9}, {10,9}, {11,9}, {12,9}, {13,9}, WEND};
 static const ledpos_t NLV1_dinner [] = { {5,9}, {6,9}, {7,9}, {8,9}, {9,9}, {10,9}, {11,9}, {12,9}, {13,9}, WEND};
 
+static const ledpos_t NLV1_time [] = { {10,9}, {11,9}, {12,9}, {13,9}, WEND};
+
 //
 // New NL clock layout
 //
@@ -198,6 +200,7 @@ static const ledclocklayout_t s_layoutNL_V1 =
         NLV1_breakfast,
         NLV1_lunch,
         NLV1_dinner,
+        NLV1_time,
     },
 
     // 10x number

@@ -16,13 +16,13 @@ typedef struct
 class BLEConfigItemOption : public BLEConfigItemUInt8
 {
 public:
-    BLEConfigItemOption(uint16_t id, EConfigType type, const std::string name, uint8_t defaultValue, bool secure = true)
-        : BLEConfigItemUInt8(id, type, name, defaultValue, secure)
+    BLEConfigItemOption(uint16_t id, EConfigType type, const char *pName)
+        : BLEConfigItemUInt8(id, type, pName)
     {        
     }
 
-    BLEConfigItemOption(uint16_t id, const std::string name, uint8_t defaultValue, bool secure = true)
-        : BLEConfigItemUInt8(id, EConfigType::CT_OPTION, name, defaultValue, secure)
+    BLEConfigItemOption(uint16_t id, const char *pName)
+        : BLEConfigItemUInt8(id, EConfigType::CT_OPTION, pName)
     {        
     }
 
