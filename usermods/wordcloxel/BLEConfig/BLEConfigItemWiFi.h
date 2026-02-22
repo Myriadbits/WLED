@@ -20,16 +20,13 @@ public:
     void setConnected(bool isConnected);
     void refreshSSIDList();
 
+    virtual void onSetup() override;
+
 protected:
     virtual int onEncodeData(uint8_t *pdata, int dataLen, int idx);
     virtual void onDecodeData(std::string data);
-    virtual void onLoad() override;
-    virtual void onStore() override;
-    virtual void onConnect() override;
-    virtual std::string valueToString();
 
 private:
-    void connectToWiFi();
     void addWiFiSSIDOptions();
    
 private:

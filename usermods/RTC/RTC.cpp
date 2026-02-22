@@ -10,7 +10,6 @@ class RTCUsermod : public Usermod {
   public:
 
     void setup() {
-      DEBUG_PRINTF_P(PSTR("---> SCL %d\n"), i2c_scl);
       if (i2c_scl<0 || i2c_sda<0) { disabled = true; return; }
       RTC.begin();
       time_t rtcTime = RTC.get();

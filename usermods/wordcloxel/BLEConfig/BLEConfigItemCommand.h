@@ -14,8 +14,5 @@ public:
     {        
     }
 
-protected:
-    virtual void onStore(Preferences &preferences, char* pkey);
-
 private:
 };

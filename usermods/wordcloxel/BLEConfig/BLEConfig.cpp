@@ -7,8 +7,7 @@
 #include "esp_gatts_api.h"
 #include "esp_bt_defs.h"
 #include "esp_bt_main.h"
-
-inline size_t getFreeHeapSize() { return heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT); } // returns free heap (ESP.getFreeHeap() can include other memory types)
+#include "wled.h"
 
 //
 // Constructor, use this to change the timeouts
@@ -82,29 +81,6 @@ uint32_t BLEConfig::getConfigValue(const uint8_t id)
 }
 
 //
-// Return the string value of a config item of a specific id (only for string based)
-std::string BLEConfig::getConfigValueString(const uint8_t id)
-{
-    BLEConfigItemBase* pconfig = getConfigItem(id);
-    if (pconfig != NULL)
-    {
-        switch (pconfig->getType())
-        {
-            case CT_STRING:
-                {
-                    BLEConfigItemString* pconfigvalue = (BLEConfigItemString*) pconfig;
-                    if (pconfigvalue != NULL)
-                        return pconfigvalue->getValue();
-                }
-                break;
-            default:
-                return std::string("");
-        }
-    }
-    return std::string("");
-}
-
-//
 // setup the BLE Configurator, call this method in the setup function
 // This setup will:
 // - Start WiFi using the stored credentials (if any and if valid)
@@ -146,11 +122,11 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
     // Device information service
     BLEUUID uuidDeviceInfo((uint16_t) 0x180a);
     BLEService *pDeviceInfoService = m_pBLEServer->createService(uuidDeviceInfo, 16, 0);    
+       
     // Manufacturer
     BLECharacteristic *pCharManufacturer = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x2a29), BLECharacteristic::PROPERTY_READ);
     pCharManufacturer->setAccessPermissions(ESP_GATT_PERM_READ);
-    pCharManufacturer->setValue((uint8_t*) m_pManufacturer, strlen(m_pManufacturer));
-    
+    pCharManufacturer->setValue((uint8_t*) m_pManufacturer, strlen(m_pManufacturer));    
     // Model
     BLECharacteristic *pCharModel = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x2a24), BLECharacteristic::PROPERTY_READ);
     pCharModel->setAccessPermissions(ESP_GATT_PERM_READ);
@@ -163,6 +139,15 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
     BLECharacteristic *pCharRevision = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x2a28), BLECharacteristic::PROPERTY_READ);
     pCharRevision->setAccessPermissions(ESP_GATT_PERM_READ);
     pCharRevision->setValue(m_pVersion);
+
+    char s[32];
+    IPAddress localIP = Network.localIP();
+    sprintf(s, "%d.%d.%d.%d", localIP[0], localIP[1], localIP[2], localIP[3]);
+    
+    // Networkaddress 0308: 5.1.20 Interoperability Requirements for Bluetooth technology as a WAP Bearer (WAP)
+    BLECharacteristic *pCharNetworkAddress = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x0308), BLECharacteristic::PROPERTY_READ);
+    pCharNetworkAddress->setAccessPermissions(ESP_GATT_PERM_READ);
+    pCharNetworkAddress->setValue((uint8_t*) s, strlen(s));    
       
     // Start all device info
     pDeviceInfoService->start();
@@ -170,7 +155,7 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
     //
     // Load all data for all config items
     for (auto it : m_vecConfigItems)
-        it->load();
+        it->onSetup();
 
     // BLEConfig service
     BLECONFIG_LOG("Starting BLE service with %d config items", m_vecConfigItems.size());
@@ -226,13 +211,6 @@ void BLEConfig::addConfigCharacteristic(BLEService *pBLEConfigService, BLEConfig
     // Value consist
     uint8_t byteCount = pitem->updateCharacteristicValue();
     BLECONFIG_LOG("- Adding characteristic for '%s' [%d bytes]", pitem->getName(), byteCount);
-
-    // snprintf(charName, 64, BLECONFIG_CHAR_CONFIG, n + 0x0101); // Do NOT start at 0!
-    // BLEDescriptor *pdesc = new BLEDescriptor(charName);       
-    // pdesc->setAccessPermissions(ESP_GATT_PERM_READ);         
-    // snprintf(text, 64, "Description [%d]", n + 1);
-    // pdesc->setValue(text);
-    // pChar->addDescriptor(pdesc);
 }
 
 //
@@ -275,55 +253,19 @@ void BLEConfig::onWrite(BLECharacteristic* pCharacteristic)
 void BLEConfig::onConnect(BLEServer* pServer)
 {
     BLECONFIG_LOG("onConnect");
+    BLEDevice::stopAdvertising();
+    
     m_isDeviceConnected = true;
-
-    for (auto it : m_vecConfigItems)
-        it->onConnect(); 
+    if (m_pCallBacks != NULL)
+        m_pCallBacks->onBluetoothConnection(m_isDeviceConnected);
 }
 
 void BLEConfig::onDisconnect(BLEServer* pServer)
 {
     BLECONFIG_LOG("OnDisconnect");
     BLEDevice::startAdvertising();
+    
     m_isDeviceConnected = false;
-}
-
-uint32_t BLEConfig::onPassKeyRequest()
-{
-    BLECONFIG_LOG("==> OnPassKeyRequest");
-    return 123456;
-}
-
-void BLEConfig::onPassKeyNotify(uint32_t pass_key)
-{       
-    BLECONFIG_LOG("==> The passkey Notify number:%d", pass_key); // <--- this one
-    if (m_pCallBacks)
-        m_pCallBacks->onDisplayPassKey(pass_key);
-}
-
-bool BLEConfig::onConfirmPIN(uint32_t pass_key)
-{
-    BLECONFIG_LOG("==> The passkey YES/NO number:%d", pass_key);
-    vTaskDelay(1000);
-    return true;
-}
-
-bool BLEConfig::onSecurityRequest()
-{
-    BLECONFIG_LOG("==> Security Request\n");
-    return true;
-}
-
-void BLEConfig::onAuthenticationComplete(esp_ble_auth_cmpl_t auth_cmpl)
-{
-    if(auth_cmpl.success)
-    {
-        BLECONFIG_LOG("remote BD_ADDR: %d.%d.%d.%d.%d.%d", auth_cmpl.bd_addr[0], auth_cmpl.bd_addr[1], auth_cmpl.bd_addr[2], auth_cmpl.bd_addr[3], auth_cmpl.bd_addr[4], auth_cmpl.bd_addr[5]);
-        //esp_log_buffer_hex(LOG_TAG, auth_cmpl.bd_addr, sizeof(auth_cmpl.bd_addr));
-        BLECONFIG_LOG("address type = %d", auth_cmpl.addr_type);
-    }
-    BLECONFIG_LOG("==> Pair status = %s", auth_cmpl.success ? "success" : "fail");
-
-    if (m_pCallBacks)
-        m_pCallBacks->onBluetoothConnection(auth_cmpl.success);
+    if (m_pCallBacks != NULL)
+        m_pCallBacks->onBluetoothConnection(m_isDeviceConnected);
 }

@@ -55,21 +55,6 @@ bool BLEConfigItemBase::decode(std::string data)
 }
 
 //
-// Load this config item from the preferences
-void BLEConfigItemBase::load()
-{
-    onLoad();
-}
-
-//
-// Store this config item to the preferences
-void BLEConfigItemBase::store()
-{
-    // Create the preference key
-    onStore();
-}
-
-//
 // Store the current value of this config item into the characteristic
 uint8_t BLEConfigItemBase::updateCharacteristicValue(bool shouldNotify)
 {

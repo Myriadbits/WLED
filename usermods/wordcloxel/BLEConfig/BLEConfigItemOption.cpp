@@ -60,21 +60,8 @@ MIOTConfigOption_t* BLEConfigItemOption::getOptionByIndex(const uint8_t index)
 }
 
 //
-// Encode this config string item into a byte array/buffer
-// pdata: pointer to the buffer
-// idx: index where the data should be stored
-// returns the index of the last item of this string
+// Encode this config option item into a byte array/buffer
 int BLEConfigItemOption::onEncodeData(uint8_t *pdata, int dataLen, int idx)
-{
-    return addOptionData(pdata, dataLen, idx);
-}
-
-//
-// Helper method to encode this config item option item into a byte array/buffer
-// pdata: pointer to the buffer
-// idx: index where the data should be stored
-// returns the index of the last item of this string
-int BLEConfigItemOption::addOptionData(uint8_t *pdata, int dataLen, int idx)
 {
     // First byte is the actual data (no more then 256 options are allowed)
     pdata[idx++] = (uint8_t)(m_value & 0x000000FF);
@@ -102,4 +89,11 @@ int BLEConfigItemOption::addOptionData(uint8_t *pdata, int dataLen, int idx)
             pdata[idx++] = m_vecOptions[n].m_sName.c_str()[i]; // And add the option name
     }
     return idx;
+}
+
+//
+// Decode an incoming config item
+void BLEConfigItemOption::onDecodeData(std::string data)
+{
+    m_value = (uint8_t) data[0];
 }

@@ -26,28 +26,3 @@ void BLEConfigItemUInt32::onDecodeData(std::string data)
 {
     m_value = (uint32_t)(data[0] << 24) | (uint32_t)(data[1] << 16) | (uint32_t)(data[2] << 8) | (uint32_t)(data[3]);
 }
-
-//
-// Load this config item from the preferences
-void BLEConfigItemUInt32::onLoad()
-{
-    // m_value = preferences.getUInt(pkey, m_valueDefault);   
-    // BLECONFIG_LOG("Loading key '%s' (%s) with value: %d", this->getName().c_str(), pkey, m_value);
-}
-
-//
-// Store this config item to the preferences
-void BLEConfigItemUInt32::onStore()
-{
-    // preferences.putUInt(pkey, m_value);
-    // BLECONFIG_LOG("Storing key '%s' (%s) with value: %d", this->getName().c_str(), pkey, m_value);
-}
-
-//
-// Return the value as a hex string (for debugging)
-std::string BLEConfigItemUInt32::valueToString()
-{
-    char stemp[32];
-    snprintf(stemp, 32, "%08X", m_value);
-    return std::string(stemp);
-}

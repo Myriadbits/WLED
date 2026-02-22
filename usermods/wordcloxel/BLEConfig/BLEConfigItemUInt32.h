@@ -25,9 +25,6 @@ public:
 protected:
     virtual int onEncodeData(uint8_t *pdata, int dataLen, int idx);
     virtual void onDecodeData(std::string data);
-    virtual void onLoad();
-    virtual void onStore();
-    virtual std::string valueToString();
 
 protected:
     uint32_t        m_value;

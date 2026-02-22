@@ -9,8 +9,8 @@
 class BLEConfigItemTime : public BLEConfigItemUInt32
 {
 public:
-    BLEConfigItemTime(uint16_t id, const char *pName, uint8_t defaultHour, uint8_t defaultMinute, uint8_t defaultSecond)
-        : BLEConfigItemUInt32(id, EConfigType::CT_TIME, pName, (((uint32_t) defaultHour) << 16) | (((uint32_t) defaultMinute) << 8) | ((uint32_t) defaultSecond))
+    BLEConfigItemTime(uint16_t id, const char *pName)
+        : BLEConfigItemUInt32(id, EConfigType::CT_TIME, pName)
     {        
     }
 

@@ -29,78 +29,11 @@ void BLEConfigItemWiFi::onDecodeData(std::string data)
 
 //
 // Load this config item from the preferences
-void BLEConfigItemWiFi::onLoad()
+void BLEConfigItemWiFi::onSetup()
 {
     // Load the strongest network names as options
     addWiFiSSIDOptions();
     BLECONFIG_LOG("Loaded WiFi settings: '%s' (index %d) with passphrase: %s", m_sSSID.c_str(), m_value, m_sPassphrase.c_str());
-}
-
-//
-// Store this config item to the preferences
-void BLEConfigItemWiFi::onStore()
-{
-    // Special case, we do the WiFi ourself
-    MIOTConfigOption_t* poption = getOptionByIndex(getValue()); // TODO Is actually an error in the app. App should return value not the index
-    if (poption == NULL)
-    {
-        BLECONFIG_LOG("ERROR: Received invalid WiFi index %d", getValue());
-        return;
-    }
-    BLECONFIG_LOG("Switching to network: '%s' with passphrase '%s'", poption->m_sName.c_str(), m_sPassphrase.c_str());
-
-    // Calling WLED stuff directly
-
-    // This is essential! Or else the whole program will crash due to the set_sleep issue!
-    noWifiSleep = false;
-
-    // Copy settings to the WiFi config
-    // See also 
-    memset(multiWiFi[0].clientSSID, 0, 32);
-    memcpy(multiWiFi[0].clientSSID, m_sSSID.c_str(), m_sSSID.length());
-
-    memset(multiWiFi[0].clientPass, 0, 64);
-    memcpy(multiWiFi[0].clientPass, m_sPassphrase.c_str(), m_sPassphrase.length());
-
-    forceReconnect = true;
-    serializeConfigToFS();
-
-
-    BLECONFIG_LOG("Wifi configured: %d", WLED_WIFI_CONFIGURED);
-
-    BLECONFIG_LOG("Wifi connected: %d", Network.isConnected());
-
-    //BLEDevice::deinit(true);
-}
-
-void BLEConfigItemWiFi::onConnect()
-{
-    // BLE connected
-    BLECONFIG_LOG("Wifi configured: %d", WLED_WIFI_CONFIGURED);
-
-    BLECONFIG_LOG("Wifi connected: %d", Network.isConnected());
-    
-    //addWiFiSSIDOptions();
-    //BLECONFIG_LOG("Loaded WiFi settings: '%s' (index %d) with passphrase: %s", m_sSSID.c_str(), m_value, m_sPassphrase.c_str());
-}
-
-//
-// Connect to the WiFi network
-void BLEConfigItemWiFi::connectToWiFi()
-{
-    // // Select the new WiFi network
-    // int status = WiFi.begin(m_sSSID.c_str(), m_sPassphrase.c_str());
-    // if (status == WL_CONNECTED)
-    // {
-    //     BLECONFIG_LOG("Connected to %s", WiFi.SSID().c_str());
-    //     BLECONFIG_LOG(" - IP address: %s", WiFi.localIP().toString().c_str());
-    //     BLECONFIG_LOG(" - Gateway: %s", WiFi.gatewayIP().toString().c_str());
-    //     BLECONFIG_LOG(" - Mask: %s", WiFi.subnetMask().toString().c_str());
-    // }
-    // else
-    // {
-    //     BLECONFIG_LOG("Failed to connect to WiFi SSID '%s', status: %d", m_sSSID.c_str(), status);
-    // } 
 }
 
 //
@@ -166,13 +99,6 @@ void BLEConfigItemWiFi::addWiFiSSIDOptions()
 }
 
 //
-// Return the value as a hex string (for debugging)
-std::string BLEConfigItemWiFi::valueToString()
-{
-    return m_sSSID;
-}
-
-//
 // Change the connection state 
 void BLEConfigItemWiFi::setConnected(bool isConnected)
 {
@@ -202,7 +128,7 @@ void BLEConfigItemWiFi::refreshSSIDList()
 int BLEConfigItemWiFi::onEncodeData(uint8_t *pdata, int dataLen, int idx)
 {
     // Start by adding the option data
-    idx = addOptionData(pdata, dataLen, idx);
+    idx = BLEConfigItemOption::onEncodeData(pdata, dataLen, idx);
     pdata[idx++] = (uint8_t)(m_isConnected);
     return idx;
 }

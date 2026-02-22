@@ -50,26 +50,22 @@ public:
 
     char* getName() { return (char*) m_pName; }
 
+    virtual void onSetup() {};
+
 private:
     int encode(uint8_t *pdata, int dataLen);
     bool decode(std::string data);
-    void load();
-    void store();
 
     friend class BLEConfig;
 
 protected:
     virtual int onEncodeData(uint8_t *pdata, int dataLen, int idx) { return idx;};
     virtual void onDecodeData(std::string data) {};
-    virtual void onLoad() {};
-    virtual void onStore() {}
-    virtual void onConnect() {};
-    virtual std::string valueToString() { return std::string(""); };
       
 private:
     uint16_t            m_id; // Unique ID 
     EConfigType         m_eType; // The config item type
-    const char*         m_pName; // Pointer to the name
-    const char*         m_pSynopsis; // Short description
+    const char*         m_pName = nullptr; // Pointer to the name
+    const char*         m_pSynopsis = nullptr; // Short description
     BLECharacteristic*  m_pChar; // Pointer to the characteristic
 };

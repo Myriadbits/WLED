@@ -99,11 +99,6 @@ class IBLEConfigCallbacks
 public:
     virtual ~IBLEConfigCallbacks() {};
 
-	//
-    // Callback that will be called with a random passkey to should be displayed
-    //
-	virtual void onDisplayPassKey(uint32_t passkey) = 0;
-
     //
     // Callback that will be called when the bluetooth connection is established or has failed
     //
@@ -143,13 +138,20 @@ public:
     void start(IBLEConfigCallbacks* pCallBacks);   
 
 protected:
-	virtual uint32_t onPassKeyRequest();
-	virtual void onPassKeyNotify(uint32_t pass_key);
-	virtual bool onSecurityRequest();
-	virtual void onAuthenticationComplete(esp_ble_auth_cmpl_t);
-	virtual bool onConfirmPIN(uint32_t pin);
+	virtual uint32_t onPassKeyRequest() { return 123456; }
+	virtual void onPassKeyNotify(uint32_t pass_key) {};
+	virtual bool onSecurityRequest() { return false;};
+	virtual void onAuthenticationComplete(esp_ble_auth_cmpl_t)
+    {
+        if (m_pCallBacks != NULL)
+            m_pCallBacks->onBluetoothConnection(m_isDeviceConnected);
+    }
 
-	virtual void onWrite(BLECharacteristic* pCharacteristic);
+	virtual bool onConfirmPIN(uint32_t pin) { return true; };
+
+    // BLECharacteristic callbacks
+
+	 void onWrite(BLECharacteristic* pCharacteristic);
 
     // BLEServer callbacks
     virtual void onConnect(BLEServer* pServer);

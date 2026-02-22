@@ -16,16 +16,17 @@ const char WordCloxel::_txtNameLower[]  PROGMEM = "wordcloxel";
 const char WordCloxel::_txtMsg[]  PROGMEM = "msg";
 const char WordCloxel::_txtTime[]  PROGMEM = "time";
 constexpr int MINIMUM_INITIALIZE_TIME = 5000;
+constexpr int CLOXEL_STARTUP_WAIT_TICKS = 200;
 constexpr int CLOXEL_STARTUP_CYCLE_TICKS = 200;
-constexpr int CLOXEL_STARTUP_CYCLES = 4;
-constexpr int CLOXEL_STARTUP_TOTAL_TICKS = CLOXEL_STARTUP_CYCLE_TICKS * CLOXEL_STARTUP_CYCLES + 100;
+constexpr int CLOXEL_STARTUP_CYCLES = 5;
+constexpr int CLOXEL_STARTUP_TOTAL_TICKS = CLOXEL_STARTUP_WAIT_TICKS + (CLOXEL_STARTUP_CYCLE_TICKS * CLOXEL_STARTUP_CYCLES) + 100;
 constexpr uint32_t CLOXEL_STARTUP_COLOR = RGBW32(0xFF, 0x7E, 0, 0);
 constexpr float_t NUMBER_OF_SECOND_PULSES_PER_MINUTE = 20.0f;
 constexpr uint32_t NUMBER_OF_MILLIS_PER_PULSE = 3000;
 constexpr uint32_t RESTART_TIME_NOWIFI = 300000; // ms
 
 static CRGB g_colorLoop[] {CRGB::Olive, CRGB::Navy, CRGB::LightBlue, CRGB::Aqua, CRGB::Teal, CRGB::Green, CRGB::Silver, CRGB::Yellow, 
-                           CRGB::Orange, CRGB::Red, CRGB::Maroon, CRGB::Fuchsia, CRGB::Purple, CRGB::Magenta, CRGB::White, CRGB::Lime};
+                           CRGB::Orange, CRGB::Red, CRGB::Maroon, CRGB::Fuchsia, CRGB::Purple, CRGB::Magenta, CRGB::White, CRGB::Lime} PROGMEM;
 
 constexpr char MY_RIPPLE_DATA[] PROGMEM = "Ripple@!,Wave #,Blur,,,,Overlay;,!;!;1;c1=0";
 
@@ -70,12 +71,20 @@ void WordCloxel::setup()
 
     strip.setBrightness(128);
 
+    // Setup RTC
+    i2c_sda = 21;
+    i2c_scl = 22;
+    //PinManagerPinType i2c[2] = { { i2c_sda, true }, { i2c_scl, true } };
+    //PinManager::allocateMultiplePins(i2c, 2, PinOwner::HW_I2C);
+
     // 25560 => 61360
     // Load/initialize all BLE Config settings
     m_bleconfig.addConfigItem(&m_bleWiFi);
     m_bleconfig.addConfigItem(&m_bleLayout);
-    m_bleconfig.addConfigItem(&m_bleDaylightSaving);
-    //m_bleconfig.addConfigItem(&m_bleEffect);
+    m_bleconfig.addConfigItem(&m_bleSetTime);
+    m_bleconfig.addConfigItem(&m_bleTimezone);
+    m_bleconfig.addConfigItem(&m_bleEffect);
+    m_bleconfig.addConfigItem(&m_blePalette);
 
     //m_bleconfig.registerString(CONFIG_LOCATION, "Location", std::string(WORDCLOCK_DEFAULTLOCATION), true);
 
@@ -83,16 +92,16 @@ void WordCloxel::setup()
 
     // 23964
     // BLEConfigItemOption *pconfig = m_bleconfig.registerOption(CONFIG_LAYOUT, "Clock layout", 3);
-    m_bleLayout.addOption((uint8_t) 0, "English V1");
-    m_bleLayout.addOption((uint8_t) 1, "Dutch V1");
+    //m_bleLayout.addOption((uint8_t) 0, "English V1");
+    //m_bleLayout.addOption((uint8_t) 1, "Dutch V1");
 
     // 22752
     // pconfig = m_bleconfig.registerOption(CONFIG_DAYLIGHTSAVING, "Daylight saving zone", 0);
-    m_bleDaylightSaving.addOption((uint8_t) 0, "Off"); 
-    m_bleDaylightSaving.addOption((uint8_t) 1, "Central European"); 
-    m_bleDaylightSaving.addOption((uint8_t) 2, "United Kingdom"); 
-    m_bleDaylightSaving.addOption((uint8_t) 3, "Australia");
-    m_bleDaylightSaving.addOption((uint8_t) 4, "US"); 
+    //m_bleDaylightSaving.addOption((uint8_t) 0, "Off"); 
+    //m_bleDaylightSaving.addOption((uint8_t) 1, "Central European"); 
+    //m_bleDaylightSaving.addOption((uint8_t) 2, "United Kingdom"); 
+    //m_bleDaylightSaving.addOption((uint8_t) 3, "Australia");
+    //m_bleDaylightSaving.addOption((uint8_t) 4, "US"); 
 
     // m_bleEffect.addOption((uint8_t) 0, "Solid");
     // m_bleEffect.addOption((uint8_t) 1, "PS Impact");
@@ -140,12 +149,10 @@ void WordCloxel::setup()
     // pconfig->addOption((uint8_t) UC_MATRIX, "Matrix");
     // pconfig->addOption((uint8_t) UC_ALLWORDS, "All words");
     // pconfig->addOption((uint8_t) UC_ANALOG, "Analog");
-
-    // Start the BLE Config stuff
-    // This will also load all previously stored settings
-    m_bleconfig.start(this);
-
+    
     //sleep(2); // Wait a bit for BLE to start
+
+    sleep(0.5);
 
     // Select initial effect
     // Segment& seg0 = strip.getSegment(0);
@@ -164,6 +171,18 @@ void WordCloxel::connected()
 {
 }
 
+/*
+* Set the layout to use based on the given layout id
+*/
+void WordCloxel::setLayout()
+{
+    switch (m_configLayout)
+    {
+        case 0: m_pCloxelLayout = &s_layoutEN_V1; break;
+        case 1: m_pCloxelLayout = &s_layoutNL_V1; break;
+        default: m_pCloxelLayout = &s_layoutEN_V1; break;
+    }
+}
 
 /*
 * loop() is called continuously. In this method we check if we are inside the configured period or not.
@@ -173,6 +192,9 @@ void WordCloxel::loop()
 {
     if (m_configEnabled) 
     {
+        // Get the correct clock layout
+        setLayout();    
+
         unsigned long currentTime = millis();
         if (currentTime - m_lastUpdateTime > 100) 
         { 
@@ -197,7 +219,11 @@ void WordCloxel::loop()
                 case EDisplayMode::DM_INITIALIZING:         
                     //DEBUG_PRINTF("%ld, Counter %d\n", currentTime, m_displayCounter);
                     if (m_displayCounter > CLOXEL_STARTUP_TOTAL_TICKS)
-                    {                      
+                    {    
+                        // Start the BLE Config stuff
+                        // This will also load all previously stored settings
+                        m_bleconfig.start(this);
+                  
                         if (year(localTime) > 2025)
                         {
                             m_displayMode = EDisplayMode::DM_NORMAL;
@@ -259,6 +285,9 @@ void WordCloxel::loop()
                         m_messageEndTime = 0;
                     }
 
+                    if (m_isBTConnected)
+                        m_vecWordsExtra.push_back(m_pCloxelLayout->extra.bluetooth);
+
                     break;
 
                 default:
@@ -305,12 +334,16 @@ void WordCloxel::showCloxelIntro()
 {
     strip.fill(BLACK);
 
-    float value = 0;
+    float value = 255;
     m_displayCounter++;
-    if (m_displayCounter < CLOXEL_STARTUP_CYCLE_TICKS * CLOXEL_STARTUP_CYCLES)
+    if (m_displayCounter < CLOXEL_STARTUP_WAIT_TICKS)
+        return; // Wait a while to initialize stuff
+
+    if (m_introY >= 15)
     {
-        value = 127 * (1.0f - cos_approx(m_displayCounter * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS));        
+        value = 127 * (1.0f - cos_approx((m_displayCounter - CLOXEL_STARTUP_WAIT_TICKS) * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS));        
     }
+    
     //CRGB col = color_fade(CLOXEL_STARTUP_COLOR, (uint8_t)value);
     if (m_introY < 15)
     {
@@ -519,19 +552,12 @@ bool WordCloxel::readFromConfig(JsonObject& root)
     return configComplete;
 }
 
-
-//
-// A BT connection request arrives, display the passcode
-// 
-void WordCloxel::onDisplayPassKey(uint32_t passkey)
-{
-}
-
 //
 // A BT connection has been established or failed
 // 
-void WordCloxel::onBluetoothConnection(bool success)
+void WordCloxel::onBluetoothConnection(bool connected)
 {   
+    m_isBTConnected = connected;
 }
 
 //
@@ -543,17 +569,69 @@ void WordCloxel::onConfigItemChanged(BLEConfigItemBase *pconfigItem)
     {
         switch (pconfigItem->getId())
         {
-            case CONFIG_LAYOUT:
+            case CONFIG_WIFI:
                 {
-                    // Clock layout has changed, 
-                  //  BLEConfigItemOption* pconfig = (BLEConfigItemOption*) pconfigItem;
-                    //setLayout(pconfig->getValue());
+                    // WiFi config has changed, we can react to it here if needed
+                    BLEConfigItemWiFi* pconfig = (BLEConfigItemWiFi*) pconfigItem;
+                    if (pconfig != NULL)
+                    {
+                        std::string ssid = pconfig->getSSID();
+                        std::string passphrase = pconfig->getPassphrase();
+                        BLECONFIG_LOG("Switching to network: '%s' with passphrase '%s'", ssid.c_str(), passphrase.c_str());
+
+                        // Calling WLED stuff directly
+
+                        // This is essential! Or else the whole program will crash due to the set_sleep issue!
+                        noWifiSleep = false;
+
+                        // Copy settings to the WiFi config
+                        // See also 
+                        memset(multiWiFi[0].clientSSID, 0, 32);
+                        memcpy(multiWiFi[0].clientSSID, ssid.c_str(), ssid.length());
+
+                        memset(multiWiFi[0].clientPass, 0, 64);
+                        memcpy(multiWiFi[0].clientPass, passphrase.c_str(), passphrase.length());
+
+                        forceReconnect = true;
+                        serializeConfigToFS();
+
+                        BLECONFIG_LOG("Wifi configured: %d", WLED_WIFI_CONFIGURED);
+
+                        BLECONFIG_LOG("Wifi connected: %d", Network.isConnected());
+                    }
+                }
+                break;
+
+            case CONFIG_LAYOUT:
+                {                    
+                    m_configLayout = m_bleLayout.getValue();
+                }
+                break;
+
+            case CONFIG_EFFECT:
+                {
+                    Segment& seg0 = strip.getSegment(0);
+                    seg0.mode = m_bleEffect.getValue();
+                }
+                break;
+
+            case CONFIG_PALETTE:
+                {
+                    Segment& seg0 = strip.getSegment(0);
+                    seg0.palette = m_blePalette.getValue();
+                }
+                break;
+
+            case CONFIG_TIME:
+                {
+                    // TODO
                 }
                 break;
 
             case CONFIG_TIMEZONE:
-            case CONFIG_DAYLIGHTSAVING:
-                //setTimezone();
+                {
+                    currentTimezone = m_bleTimezone.getValue();
+                }
                 break;
 
             case CONFIG_COMMAND:

@@ -26,10 +26,11 @@ typedef enum EMessageMode
 #define CONFIG_WIFI                     1
 #define CONFIG_LOCATION                 2
 #define CONFIG_LAYOUT                   3
+#define CONFIG_TIME                     4
 #define CONFIG_TIMEZONE                 5
-#define CONFIG_DAYLIGHTSAVING           6
 
 #define CONFIG_EFFECT                   7
+#define CONFIG_PALETTE                  8
 
 #define CONFIG_COLOR_TIME               10
 #define CONFIG_COLOR_WEEKDAY            11
@@ -72,19 +73,21 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
     unsigned long m_messageEndTime {0};
     int m_messageTime {0};
 
-    static const char _txtName[];
-    static const char _txtNameLower[];
-    static const char _txtMsg[];
-    static const char _txtTime[];
+    static const char _txtName[] PROGMEM;
+    static const char _txtNameLower[] PROGMEM;
+    static const char _txtMsg[] PROGMEM;
+    static const char _txtTime[] PROGMEM;
 
     static const char _txtBrightness[];
 
     // BLE Config items
     BLEConfig  m_bleconfig {WORDCLOCK_MODEL, WORDCLOCK_MANUFACTURER, WORDCLOCK_VERSION, 256}; // 256 = Clock TODO VERSION
     BLEConfigItemWiFi m_bleWiFi {CONFIG_WIFI, "WiFi SSID"};
-    BLEConfigItemOption m_bleLayout {CONFIG_LAYOUT, CT_OPTION, "Clock layout", 0};
-    BLEConfigItemOption m_bleDaylightSaving {CONFIG_DAYLIGHTSAVING, CT_OPTION, "Daylight saving zone", 1};
-    BLEConfigItemOption m_bleEffect {CONFIG_EFFECT, CT_OPTION, "Effect", 0};
+    BLEConfigItemUInt8 m_bleLayout {CONFIG_LAYOUT, CT_UINT8, "Clock layout", 2};
+    BLEConfigItemUInt32 m_bleSetTime {CONFIG_TIME, CT_UINT32, "Set the time (unixtime)"};
+    BLEConfigItemUInt8 m_bleTimezone {CONFIG_TIMEZONE, CT_UINT8, "Time zone", 24};
+    BLEConfigItemUInt8 m_bleEffect {CONFIG_EFFECT, CT_UINT8, "Effect", MODE_COUNT};
+    BLEConfigItemUInt8 m_blePalette {CONFIG_PALETTE, CT_UINT8, "Palette", 58};
     
 
     // Config variables
@@ -100,15 +103,14 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
     std::vector<const ledpos_t*> m_vecWordsWeekday;
     std::vector<const ledpos_t*> m_vecWordsSecond;
     std::vector<const ledpos_t*> m_vecWordsExtra;
-    const ledclocklayout_t *m_pCloxelLayout {nullptr};
+    const ledclocklayout_t *m_pCloxelLayout { nullptr };
 
-    int m_heapCounter {0};
+    bool m_isBTConnected { false };
+    int m_heapCounter { 0 };
 
   public:
     void setup() override;
-
     void connected() override;  
-
     void loop() override;
     void handleOverlayDraw() override;
 
@@ -122,11 +124,11 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
     uint16_t getId() override { return 255; }
 
      // MIOT Callbacks
-    virtual void onDisplayPassKey(uint32_t passkey);
     virtual void onBluetoothConnection(bool success);
     virtual void onConfigItemChanged(BLEConfigItemBase *pconfigItem);
 
 private:
+    void setLayout();
     void showCloxelIntro();
     void addWordToLeds(const ledpos_t* pWord, CRGB color);
     void addWordsToLeds(std::vector<const ledpos_t*> rVecWords, CRGB defaultColor);

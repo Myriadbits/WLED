@@ -34,20 +34,5 @@ void BLEConfigItemString::onDecodeData(std::string data)
     m_valueString = data; 
 }
 
-//
-// Load this config item from the preferences
-void BLEConfigItemString::onLoad()
-{
-    // m_valueString = std::string(preferences.getString(pkey, m_valueStringDefault.c_str()).c_str());    
-    // BLECONFIG_LOG("Loading key '%s' (%s) with value: %s", this->getName().c_str(), pkey, m_valueString.c_str());
-}
-
-//
-// Store this config item to the preferences
-void BLEConfigItemString::onStore()
-{
-    // preferences.putString(pkey, m_valueString.c_str());
-    // BLECONFIG_LOG("Storing key '%s' (%s) with value: %s", this->getName().c_str(), pkey, m_valueString.c_str());
-}
 
 
