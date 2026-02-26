@@ -23,31 +23,33 @@ typedef enum EMessageMode
 } EMessageMode;
 
 // TODO All configuration items
-#define CONFIG_WIFI                     1
-#define CONFIG_LOCATION                 2
-#define CONFIG_LAYOUT                   3
-#define CONFIG_TIME                     4
-#define CONFIG_TIMEZONE                 5
+#define SID_WIFI                    1
+#define SID_MULTISETTING            2
 
-#define CONFIG_EFFECT                   7
-#define CONFIG_PALETTE                  8
+// Multi config settings
+#define MC_LAYOUT                   0
+#define MC_IMEZONE                  1
 
-#define CONFIG_COLOR_TIME               10
-#define CONFIG_COLOR_WEEKDAY            11
-#define CONFIG_COLOR_DATE               12
-#define CONFIG_COLOR_BACKGROUND         13
-#define CONFIG_BRIGHTNESS_DAY           14
-#define CONFIG_BRIGHTNESS_NIGHT         15
-#define CONFIG_BRIGHTNESS_BACKGROUND    16
+#define MC_FG_EFFECT                2
+#define MC_FG_PALETTE               3
+#define MC_BK_EFFECT                4
+#define MC_BK_PALETTE               5
 
-#define CONFIG_OPTIONS_TIME             20
-#define CONFIG_OPTIONS_WEEKDAY          21
-#define CONFIG_OPTIONS_DATE             22
-#define CONFIG_OPTIONS_CLOXEL           23
+#define MC_BRIGHTNESS               6
+#define MC_BK_BRIGHTNESS            7
 
-#define CONFIG_NAME                     30
+#define MC_COMMAND                  8
 
-#define CONFIG_COMMAND                  42
+#define MC_TIME_1                   9 
+#define MC_TIME_2                   10
+#define MC_TIME_3                   11
+#define MC_TIME_4                   12
+
+#define MC_IPADDRESS_1              13 
+#define MC_IPADDRESS_2              14
+#define MC_IPADDRESS_3              15
+#define MC_IPADDRESS_4              16
+
 
 #define WORDCLOCK_MANUFACTURER          "www.cloxel.nl"
 #define WORDCLOCK_MODEL                 "Wordcloxel"
@@ -82,12 +84,13 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
 
     // BLE Config items
     BLEConfig  m_bleconfig {WORDCLOCK_MODEL, WORDCLOCK_MANUFACTURER, WORDCLOCK_VERSION, 256}; // 256 = Clock TODO VERSION
-    BLEConfigItemWiFi m_bleWiFi {CONFIG_WIFI, "WiFi SSID"};
-    BLEConfigItemUInt8 m_bleLayout {CONFIG_LAYOUT, CT_UINT8, "Clock layout", 2};
-    BLEConfigItemUInt32 m_bleSetTime {CONFIG_TIME, CT_UINT32, "Set the time (unixtime)"};
-    BLEConfigItemUInt8 m_bleTimezone {CONFIG_TIMEZONE, CT_UINT8, "Time zone", 24};
-    BLEConfigItemUInt8 m_bleEffect {CONFIG_EFFECT, CT_UINT8, "Effect", MODE_COUNT};
-    BLEConfigItemUInt8 m_blePalette {CONFIG_PALETTE, CT_UINT8, "Palette", 58};
+    BLEConfigItemWiFi m_bleWiFi {SID_WIFI};
+    BLEConfigItemMultiSetting m_bleMultiSetting {SID_MULTISETTING };
+
+    //BLEConfigItemUInt32 m_bleSetTime {CONFIG_TIME, CT_UINT32, "Set the time (unixtime)"};
+    //BLEConfigItemUInt8 m_bleTimezone {CONFIG_TIMEZONE, CT_UINT8, "Time zone", 24};
+    //BLEConfigItemUInt8 m_bleEffect {CONFIG_EFFECT, CT_UINT8, "Effect", MODE_COUNT};
+    //BLEConfigItemUInt8 m_blePalette {CONFIG_PALETTE, CT_UINT8, "Palette", 58};
     
 
     // Config variables
@@ -130,7 +133,7 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
 private:
     void setLayout();
     void showCloxelIntro();
-    void addWordToLeds(const ledpos_t* pWord, CRGB color);
-    void addWordsToLeds(std::vector<const ledpos_t*> rVecWords, CRGB defaultColor);
+    void addWordToLeds(uint8_t segment, const ledpos_t* pWord, CRGB color, int idx, bool useForegroundEffect = true);
+    void addWordsToLeds(uint8_t segment, std::vector<const ledpos_t*> rVecWords, CRGB defaultColor, int idx, bool useForegroundEffect = true);
 };
 

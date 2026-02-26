@@ -16,6 +16,7 @@ enum EConfigType : uint8_t
     CT_WIFI,             // List of all WiFi SSIDS in range (CT_OPTION with SSIDs filled in), when switching, we expect the passphrase as well
     CT_UINT8,            // Slider (0-100) 
     CT_COMMAND,          // List of commands. When written, executes a single command
+    CT_MULTI,            // Multisetting
 };
 
 
@@ -39,7 +40,7 @@ enum EConfigType : uint8_t
 class BLEConfigItemBase
 {
 public:
-    BLEConfigItemBase(uint16_t id, const EConfigType type, const char *pName);
+    BLEConfigItemBase(uint16_t id, const EConfigType type);
 
     // Properties
     uint16_t getId() { return m_id;}
@@ -47,8 +48,6 @@ public:
 
     void setCharacteristic(BLECharacteristic* pChar) { m_pChar = pChar; }
     uint8_t updateCharacteristicValue(bool shouldNotify = false);
-
-    char* getName() { return (char*) m_pName; }
 
     virtual void onSetup() {};
 
@@ -65,7 +64,6 @@ protected:
 private:
     uint16_t            m_id; // Unique ID 
     EConfigType         m_eType; // The config item type
-    const char*         m_pName = nullptr; // Pointer to the name
     const char*         m_pSynopsis = nullptr; // Short description
     BLECharacteristic*  m_pChar; // Pointer to the characteristic
 };

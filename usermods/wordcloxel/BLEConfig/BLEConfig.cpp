@@ -24,7 +24,8 @@ BLEConfig::BLEConfig(const char *pModel, const char *pManufacturer, const char *
     , m_pVersion(pVersion)
     , m_appearance(appearance)
     , m_isDeviceConnected(false)
-{    
+{
+    //m_vecConfigItems.reserve(10);    
 }
 
 void BLEConfig::addConfigItem(BLEConfigItemBase* pitem)
@@ -42,42 +43,6 @@ BLEConfigItemBase* BLEConfig::getConfigItem(const uint8_t id)
             return it;
     }
     return NULL;
-}
-
-//
-// Return the value of a config item with a specific id (only for value based)
-uint32_t BLEConfig::getConfigValue(const uint8_t id)
-{
-    BLEConfigItemBase* pconfig = getConfigItem(id);
-    if (pconfig != NULL)
-    {
-        switch (pconfig->getType())
-        {
-            case CT_DATE:
-            case CT_TIME:
-            case CT_UINT32:
-            case CT_RGBCOLOR:
-                {
-                    BLEConfigItemUInt32* pconfigvalue = (BLEConfigItemUInt32*) pconfig;
-                    if (pconfigvalue != NULL)
-                        return pconfigvalue->getValue();
-                }
-                break;
-
-            case CT_SLIDER:
-            case CT_OPTION:
-                {
-                    BLEConfigItemUInt8* pconfigvalue = (BLEConfigItemUInt8*) pconfig;
-                    if (pconfigvalue != NULL)
-                        return pconfigvalue->getValue();
-                }
-                break;
-
-            default:
-                return 0;
-        }
-    }
-    return 0;
 }
 
 //
@@ -140,14 +105,13 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
     pCharRevision->setAccessPermissions(ESP_GATT_PERM_READ);
     pCharRevision->setValue(m_pVersion);
 
-    char s[32];
-    IPAddress localIP = Network.localIP();
-    sprintf(s, "%d.%d.%d.%d", localIP[0], localIP[1], localIP[2], localIP[3]);
-    
-    // Networkaddress 0308: 5.1.20 Interoperability Requirements for Bluetooth technology as a WAP Bearer (WAP)
-    BLECharacteristic *pCharNetworkAddress = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x0308), BLECharacteristic::PROPERTY_READ);
-    pCharNetworkAddress->setAccessPermissions(ESP_GATT_PERM_READ);
-    pCharNetworkAddress->setValue((uint8_t*) s, strlen(s));    
+    // char s[32];
+    // IPAddress localIP = Network.localIP();
+    // sprintf(s, "%d.%d.%d.%d", localIP[0], localIP[1], localIP[2], localIP[3]);    
+    // // Networkaddress 0308: 5.1.20 Interoperability Requirements for Bluetooth technology as a WAP Bearer (WAP)
+    // BLECharacteristic *pCharNetworkAddress = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x0308), BLECharacteristic::PROPERTY_READ);
+    // pCharNetworkAddress->setAccessPermissions(ESP_GATT_PERM_READ);
+    // pCharNetworkAddress->setValue((uint8_t*) s, strlen(s));    
       
     // Start all device info
     pDeviceInfoService->start();
@@ -210,7 +174,7 @@ void BLEConfig::addConfigCharacteristic(BLEService *pBLEConfigService, BLEConfig
 
     // Value consist
     uint8_t byteCount = pitem->updateCharacteristicValue();
-    BLECONFIG_LOG("- Adding characteristic for '%s' [%d bytes]", pitem->getName(), byteCount);
+    BLECONFIG_LOG("- Adding characteristic for id:%d [%d bytes]", pitem->getId(), byteCount);
 }
 
 //

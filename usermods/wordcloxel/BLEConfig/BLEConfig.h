@@ -52,16 +52,8 @@
 #include <vector>
 
 #include "BLEConfigItemBase.h"
-#include "BLEConfigItemOption.h"
-#include "BLEConfigItemString.h"
-#include "BLEConfigItemUInt8.h"
-#include "BLEConfigItemUInt32.h"
 #include "BLEConfigItemWiFi.h"
-#include "BLEConfigItemDate.h"
-#include "BLEConfigItemTime.h"
-#include "BLEConfigItemCommand.h"
-
-
+#include "BLEConfigItemMultiSetting.h"
 
 // TODO Remove
 #define  BLECONFIG_DEBUG
@@ -125,9 +117,6 @@ public:
     
     BLEConfigItemBase*    getConfigItem(const uint8_t id);
     void                  addConfigItem(BLEConfigItemBase* pitem);
-
-    uint32_t              getConfigValue(const uint8_t id);
-    std::string           getConfigValueString(const uint8_t id);
 
     static void gapEventHandler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
     static void gattClientEventHandler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t* param);
