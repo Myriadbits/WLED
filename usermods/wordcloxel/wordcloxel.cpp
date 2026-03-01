@@ -54,8 +54,7 @@ void WordCloxel::setup()
     // Do nothing
     m_pCloxelLayout = &s_layoutEN_V1;
     m_fInitialized = true;
-    m_displayMode = EDisplayMode::DM_INITIALIZING;
-    m_startOfInitializedTime = millis();
+    m_displayMode = EDisplayMode::Initializing;
 
     // Initialize matrix layout
     WS2812FX::Panel pan;
@@ -90,35 +89,60 @@ void WordCloxel::setup()
 
     sleep(0.5);
 
-    if (strip.getSegmentsNum() == 1)
-    {
-         BLECONFIG_LOG("Single segment, creating extra segment");
-         strip.appendSegment(0, 16, 0, 16); // Extra segment for background
-    }
+    // Setup all the effects
+    //setupEffects(EEffectMode::Foreground);
+    setupEffects(EEffectMode::Background);
+}
 
-    // Select initial effect    
+
+void WordCloxel::setupEffects(EEffectMode newEffect)
+{
+    if (strip.getSegmentsNum() != 1)
+        strip.resetSegments();
+
+    // Add exta segment for foreground
+    strip.appendSegment(0, 16, 0, 16); 
+
     Segment& seg0 = strip.getSegment(0);
-    if (seg0.mode == FX_MODE_STATIC) // Only set effect when no effect is present. This allows the user to set an effect in the config and have it start with that effect.
+    if (seg0.mode == FX_MODE_STATIC)
     {
-        seg0.mode = FX_MODE_BREATH;        
-        seg0.palette = 1; // Random cycle
+        seg0.mode = m_configuration.foregroundEffect;
+        seg0.palette = m_configuration.foregroundPalette;
     }
-    seg0.setOpacity(1);
-    //seg.speed = 40;
-    //seg.intensity = 128;
-    //seg.custom1 = 0;
+    else
+    {
+        m_configuration.foregroundEffect = seg0.mode;
+        m_configuration.foregroundPalette = seg0.palette;
+    }
+    if (newEffect == EEffectMode::Background)
+        seg0.setOpacity(m_configuration.backgroundBrightness);
+    else if (newEffect == EEffectMode::None)
+        seg0.setOpacity(0);
+    else
+        seg0.setOpacity(10);
 
     Segment& seg1 = strip.getSegment(1);
     if (seg1.mode == FX_MODE_STATIC)
-    {
-        seg1.mode = FX_MODE_TWINKLEFOX;
-        seg1.palette = 50; 
+    {        
+        seg1.mode = m_configuration.backgroundEffect;
+        seg1.palette = m_configuration.backgroundPalette; 
     }
+    else
+    {
+        m_configuration.backgroundEffect = seg1.mode;
+        m_configuration.backgroundPalette = seg1.palette;
+    }
+    seg1.setOpacity(1);
 
-    seg1.setOpacity(10);
-    // seg0.speed = 40;
-    // seg0.intensity = 128;
-    // seg0.custom1 = 0;
+    seg0.stop = 15;
+    seg0.stop = 16;
+    seg0.refreshLightCapabilities();
+        
+    // Yes, the following call makes sure the palette is used for segment 1
+    seg1.refreshLightCapabilities();
+
+    m_lastEffectMode = (EEffectMode) newEffect;
+    m_configuration.effectMode = (uint8_t) newEffect;
 }
 
 /* 
@@ -133,7 +157,7 @@ void WordCloxel::connected()
 */
 void WordCloxel::setLayout()
 {
-    switch (m_configLayout)
+    switch (m_configuration.layout)
     {
         case 0: m_pCloxelLayout = &s_layoutEN_V1; break;
         case 1: m_pCloxelLayout = &s_layoutNL_V1; break;
@@ -150,9 +174,15 @@ void WordCloxel::loop()
     if (m_configEnabled) 
     {
         // Get the correct clock layout
-        setLayout();    
+        setLayout();
 
-        //strip.getSegment(0).setOpacity(m_configBackgroundFade);
+        // Update effects when changed by the UserMode page
+        if (((EEffectMode) m_configuration.effectMode) != m_lastEffectMode)
+        {
+            strip.suspend();
+            setupEffects((EEffectMode) m_configuration.effectMode);
+            strip.resume();
+        }
 
         unsigned long currentTime = millis();
         if (currentTime - m_lastUpdateTime > 100) 
@@ -175,7 +205,7 @@ void WordCloxel::loop()
             
             switch (m_displayMode)
             {
-                case EDisplayMode::DM_INITIALIZING:         
+                case EDisplayMode::Initializing:         
                     if (m_displayCounter > CLOXEL_STARTUP_TOTAL_TICKS)
                     {    
                         // Start the BLE Config stuff
@@ -185,21 +215,21 @@ void WordCloxel::loop()
                         if (year(localTime) > 2025)
                         {
                             m_displayCounter = 0;
-                            m_displayMode = EDisplayMode::DM_NORMAL;
+                            m_displayMode = EDisplayMode::Normal;
                         }
                         else
                         {
-                            m_displayMode = EDisplayMode::DM_NOTIME;
+                            m_displayMode = EDisplayMode::NotTime;
                         }
                     }
                     break;
 
-                case EDisplayMode::DM_NOTIME:
+                case EDisplayMode::NotTime:
                     m_vecWordsTime.push_back(m_pCloxelLayout->extra.no);
                     m_vecWordsTime.push_back(m_pCloxelLayout->extra.time);
                     if (year(localTime) > 2025)
                     {
-                        m_displayMode = EDisplayMode::DM_NORMAL;
+                        m_displayMode = EDisplayMode::Normal;
                     }   
                     else if (currentTime > RESTART_TIME_NOWIFI)
                     {
@@ -207,7 +237,7 @@ void WordCloxel::loop()
                     }
                     break;
 
-                case EDisplayMode::DM_NORMAL:
+                case EDisplayMode::Normal:
                     if (m_displayCounter < 1600)
                         strip.setBrightness(m_displayCounter / 40, true);
                     else
@@ -223,19 +253,19 @@ void WordCloxel::loop()
                     {
                         switch (m_messageMode)
                         {
-                            case EMessageMode::EM_GOODMORNING:
+                            case EMessageMode::GoodMorning:
                                 m_vecWordsExtra.push_back(m_pCloxelLayout->extra.goodmorning);
                                 break;
-                            case EMessageMode::EM_BREAKFAST:
+                            case EMessageMode::Breakfast:
                                 m_vecWordsExtra.push_back(m_pCloxelLayout->extra.breakfast);
                                 break;
-                            case EMessageMode::EM_LUNCH:
+                            case EMessageMode::Lunch:
                                 m_vecWordsExtra.push_back(m_pCloxelLayout->extra.lunch);
                                 break;
-                            case EMessageMode::EM_DINNER:
+                            case EMessageMode::Dinner:
                                 m_vecWordsExtra.push_back(m_pCloxelLayout->extra.dinner);
                                 break;
-                            case EMessageMode::EM_WORDCLOXEL:
+                            case EMessageMode::WordCloxel:
                                 m_vecWordsExtra.push_back(m_pCloxelLayout->extra.myriadbits);
                                 m_vecWordsExtra.push_back(m_pCloxelLayout->extra.word);
                                 break;
@@ -245,7 +275,7 @@ void WordCloxel::loop()
                     }
                     else
                     {
-                        m_messageMode = EMessageMode::EM_NONE;
+                        m_messageMode = EMessageMode::None;
                         m_messageEndTime = 0;
                     }
 
@@ -316,7 +346,7 @@ void WordCloxel::showCloxelIntro()
     //     value = 127 * (1.0f - cos_approx((m_displayCounter - CLOXEL_STARTUP_WAIT_TICKS) * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS));        
     // }
     
-    int pal = 37; // 26; // Was 34
+    int pal = m_configuration.introPalette;
     CRGBPalette16 palette = CRGBPalette16();
     byte tcp[72];
     memcpy_P(tcp, (byte*)pgm_read_dword(&(gGradientPalettes[pal - (DYNAMIC_PALETTE_COUNT + FASTLED_PALETTE_COUNT)])), sizeof(tcp));
@@ -360,6 +390,16 @@ void WordCloxel::showCloxelIntro()
     }
 }
 
+void WordCloxel::modifyBackground()
+{
+    Segment& seg0 = strip.getSegment(0);
+    for(int i = 0; i < seg0.width() * seg0.height(); i++) 
+    {
+        uint32_t c1 = strip.getPixelColor(i);
+        strip.setPixelColor(i, color_fade(c1, m_configuration.backgroundBrightness)); // blank out the segment
+    }
+}
+
 /*
 * handleOverlayDraw() is called just before every show() (LED strip update frame) after effects have set the colors.
 * Use this to blank out some LEDs or set them to a different color regardless of the set effect mode.
@@ -373,11 +413,11 @@ void WordCloxel::handleOverlayDraw()
         m_displayCounter++;
 
         // At startup, always show cloxel text
-        if (m_displayMode == EDisplayMode::DM_INITIALIZING)
+        if (m_displayMode == EDisplayMode::Initializing)
         {
             showCloxelIntro();
         }
-        else if (m_displayMode == EDisplayMode::DM_NOTIME)
+        else if (m_displayMode == EDisplayMode::NotTime)
         {
             strip.fill(BLACK);
             float value = 127 * (cos_approx(m_displayCounter * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS) + 1.0f);
@@ -386,24 +426,49 @@ void WordCloxel::handleOverlayDraw()
         }
         else
         {
+            // Segment 0, plays background effect
+            // Segment 1, plays text effect
+            int segment = 1;
+            EEffectMode currentEffectMode = (EEffectMode)m_configuration.effectMode;
+            bool useEffectFromSeg = (currentEffectMode == EEffectMode::Double || currentEffectMode == EEffectMode::Foreground);
+            
+            CRGB colTime = ColorFromPaletteWLED(SEGPALETTE, 1);
+            CRGB colWeekday = ColorFromPaletteWLED(SEGPALETTE, 40);
+            CRGB colDate = ColorFromPaletteWLED(SEGPALETTE, 100);
 
-            //Segment& seg0 = strip.getSegment(0);
-            //Segment& seg1 = strip.getSegment(1);
-
-            // for(int i = 0; i < seg0.width() * seg0.height(); i++) 
-            // {
-            //     uint32_t c1 = strip.getPixelColor(i);
-            //     strip.setPixelColor(i, color_fade(c1, m_configBackgroundFade)); // blank out the segment
-            // }   
+            if (currentEffectMode == EEffectMode::Background)
+            {
+                modifyBackground();
+                // Segment& seg0 = strip.getSegment(0);
+                // for(int i = 0; i < seg0.width() * seg0.height(); i++) 
+                // {
+                //     uint32_t c1 = strip.getPixelColor(i);
+                //     strip.setPixelColor(i, color_fade(c1, m_configuration.backgroundBrightness)); // blank out the segment
+                // }
+            }
+            else if (currentEffectMode == EEffectMode::Foreground || currentEffectMode == EEffectMode::None)
+            {
+                strip.fill(BLACK);
+            }
+            else
+            {
+                Segment& seg0 = strip.getSegment(0);
+                for(int i = 0; i < seg0.width() * seg0.height(); i++) 
+                {
+                    uint32_t c1 = seg0.getPixelColor(i);
+                    strip.setPixelColor(i, color_fade(c1, m_configuration.backgroundBrightness)); // blank out the segment
+                }
+            }
 
             // Add all words to the clock
-            addWordsToLeds(0, m_vecWordsTime, m_configTimeColor, 1);
-            addWordsToLeds(0, m_vecWordsWeekday, m_configWeekdayColor, 50);
-            addWordsToLeds(0, m_vecWordsDate, m_configDateColor, 100);
+            addWordsToLeds(segment, m_vecWordsTime, colTime, 1, useEffectFromSeg);
+            addWordsToLeds(segment, m_vecWordsWeekday, colWeekday, 50, useEffectFromSeg);
+            addWordsToLeds(segment, m_vecWordsDate, colDate, 100, useEffectFromSeg);
 
+            // Second pulse
             unsigned long milliOnly = millis() % NUMBER_OF_MILLIS_PER_PULSE; 
             float value = 127 * (1.0f + cos_approx(milliOnly * M_TWOPI / (float_t)NUMBER_OF_MILLIS_PER_PULSE));
-            addWordsToLeds(0, m_vecWordsSecond, color_fade((uint32_t) m_configTimeColor, (uint8_t)value), 150);
+            addWordsToLeds(segment, m_vecWordsSecond, color_fade((uint32_t) colTime, (uint8_t)value), 150, useEffectFromSeg);
 
             // BT & WiFi
             float value2 = 127 * (cos_approx(m_displayCounter * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS) + 1.0f);
@@ -470,25 +535,25 @@ void WordCloxel::readFromJsonState(JsonObject& root)
             // TODO Make map?
             if (displayMsg == "goodmorning") 
             {
-                m_messageMode = EMessageMode::EM_GOODMORNING;
+                m_messageMode = EMessageMode::GoodMorning;
             }
             else if (displayMsg == "breakfast") 
             {
-                m_messageMode = EMessageMode::EM_BREAKFAST;
+                m_messageMode = EMessageMode::Breakfast;
             }
             else if (displayMsg == "lunch") 
             {
-                m_messageMode = EMessageMode::EM_LUNCH;
+                m_messageMode = EMessageMode::Lunch;
             }
             else if (displayMsg == "dinner") 
             {
-                m_messageMode = EMessageMode::EM_DINNER;
+                m_messageMode = EMessageMode::Dinner;
             }
             else if (displayMsg == "wordcloxel") 
             {
-                m_messageMode = EMessageMode::EM_WORDCLOXEL;
+                m_messageMode = EMessageMode::WordCloxel;
             }
-            DEBUG_PRINTF("Incoming message '%s' for %d s\n", displayMsg.c_str(), m_messageTime);
+            DEBUG_PRINTF("Incoming message '%s'\n", displayMsg.c_str());
         }
     }
 }
@@ -501,17 +566,8 @@ void WordCloxel::addToConfig(JsonObject& root)
     JsonObject top = root.createNestedObject(F(_txtName));
 
     top[F("Active")] = m_configEnabled;
-    top[F("Layout")] = m_configLayout;
-    top[F("Time color (RRGGBB)")] = colorToHexString(m_configTimeColor);
-    top[F("Weekday color (RRGGBB)")] = colorToHexString(m_configWeekdayColor);
-    top[F("Date color (RRGGBB)")] = colorToHexString(m_configDateColor);
-    top[F("Background fade")] = m_configBackgroundFade;
-
-    // top[F("Start hour")] = configStartHour;
-    // top[F("Start minute")] = configStartMinute;
-    // top[F("End hour")] = configEndHour;
-    // top[F("End minute")] = configEndMinute;
-    // top[F("Brightness")] = configBrightness;
+    top[F("Layout")] = m_configuration.layout;
+    top[F("EffectMode")] = m_configuration.effectMode;
 }
 
 /*
@@ -522,6 +578,12 @@ void WordCloxel::appendConfigData()
     oappend(F("dd=addDropdown('")); oappend(_txtName); oappend(F("','Layout');"));
     oappend(F("addOption(dd,'English V1',0);"));
     oappend(F("addOption(dd,'Dutch V2',1);"));
+
+    oappend(F("dd=addDropdown('")); oappend(_txtName); oappend(F("','EffectMode');"));
+    oappend(F("addOption(dd,'None',0);"));
+    oappend(F("addOption(dd,'Foreground',1);"));
+    oappend(F("addOption(dd,'Background',2);"));
+    oappend(F("addOption(dd,'Both',3);"));
 
     // oappend(F("addInfo('")); oappend(_txtName); oappend(F(":Start hour', 1, '(0-23)');"));
     // oappend(F("addInfo('")); oappend(_txtName); oappend(F(":Start minute', 1, '(0-59)');"));
@@ -540,14 +602,8 @@ bool WordCloxel::readFromConfig(JsonObject& root)
     bool configComplete = !top.isNull();
 
     configComplete &= getJsonValue(top[F("Active")], m_configEnabled);
-    configComplete &= getJsonValue(top[F("Layout")], m_configLayout);
-
-    String tempColor;
-    configComplete &= getJsonValue(top[F("Time color (RRGGBB)")], tempColor, F("FFFFFF")) && colorFromHexString(m_configTimeColor.raw, tempColor.c_str());
-    configComplete &= getJsonValue(top[F("Weekday color (RRGGBB)")], tempColor, F("FFFFFF")) && colorFromHexString(m_configWeekdayColor.raw, tempColor.c_str());
-    configComplete &= getJsonValue(top[F("Date color (RRGGBB)")], tempColor, F("FFFFFF")) && colorFromHexString(m_configDateColor.raw, tempColor.c_str());
-
-    configComplete &= getJsonValue(top[F("Background fade")], m_configBackgroundFade);
+    configComplete &= getJsonValue(top[F("Layout")], m_configuration.layout);
+    configComplete &= getJsonValue(top[F("EffectMode")], m_configuration.effectMode);
 
     return configComplete;
 }
@@ -561,7 +617,7 @@ void WordCloxel::onBluetoothConnection(bool connected)
 }
 
 //
-// A config item has changed, forward to the settings
+// A config item has changed through BLE, forward to the settings
 // 
 void WordCloxel::onConfigItemChanged(BLEConfigItemBase *pconfigItem)
 {
