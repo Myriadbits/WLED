@@ -91,11 +91,11 @@ void WordCloxel::setup()
 
     // Setup all the effects
     //setupEffects(EEffectMode::Foreground);
-    setupEffects(EEffectMode::Background);
+    setupEffects();
 }
 
 
-void WordCloxel::setupEffects(EEffectMode newEffect)
+void WordCloxel::setupEffects()
 {
     if (strip.getSegmentsNum() != 1)
         strip.resetSegments();
@@ -104,34 +104,18 @@ void WordCloxel::setupEffects(EEffectMode newEffect)
     strip.appendSegment(0, 16, 0, 16); 
 
     Segment& seg0 = strip.getSegment(0);
-    if (seg0.mode == FX_MODE_STATIC)
-    {
-        seg0.mode = m_configuration.foregroundEffect;
-        seg0.palette = m_configuration.foregroundPalette;
-    }
-    else
-    {
-        m_configuration.foregroundEffect = seg0.mode;
-        m_configuration.foregroundPalette = seg0.palette;
-    }
-    if (newEffect == EEffectMode::Background)
+    seg0.mode = m_configuration.backgroundEffect;
+    seg0.palette = m_configuration.backgroundPalette;
+    if (m_configuration.effectMode == (uint8_t) EEffectMode::Background)
         seg0.setOpacity(m_configuration.backgroundBrightness);
-    else if (newEffect == EEffectMode::None)
+    else if (m_configuration.effectMode == (uint8_t) EEffectMode::None)
         seg0.setOpacity(0);
     else
         seg0.setOpacity(10);
 
     Segment& seg1 = strip.getSegment(1);
-    if (seg1.mode == FX_MODE_STATIC)
-    {        
-        seg1.mode = m_configuration.backgroundEffect;
-        seg1.palette = m_configuration.backgroundPalette; 
-    }
-    else
-    {
-        m_configuration.backgroundEffect = seg1.mode;
-        m_configuration.backgroundPalette = seg1.palette;
-    }
+    seg1.mode = m_configuration.foregroundEffect;
+    seg1.palette = m_configuration.foregroundPalette; 
     seg1.setOpacity(1);
 
     seg0.stop = 15;
@@ -139,10 +123,7 @@ void WordCloxel::setupEffects(EEffectMode newEffect)
     seg0.refreshLightCapabilities();
         
     // Yes, the following call makes sure the palette is used for segment 1
-    seg1.refreshLightCapabilities();
-
-    m_lastEffectMode = (EEffectMode) newEffect;
-    m_configuration.effectMode = (uint8_t) newEffect;
+    seg1.refreshLightCapabilities();    
 }
 
 /* 
@@ -174,15 +155,16 @@ void WordCloxel::loop()
     if (m_configEnabled) 
     {
         // Get the correct clock layout
-        setLayout();
+        //setLayout();
 
         // Update effects when changed by the UserMode page
-        if (((EEffectMode) m_configuration.effectMode) != m_lastEffectMode)
-        {
-            strip.suspend();
-            setupEffects((EEffectMode) m_configuration.effectMode);
-            strip.resume();
-        }
+        // if (((EEffectMode) m_configuration.effectMode) != m_lastEffectMode)
+        // {
+        //     strip.suspend();
+        //     setupEffects();
+        //     strip.resume();
+        //     m_lastEffectMode = (EEffectMode) m_configuration.effectMode;
+        // }
 
         unsigned long currentTime = millis();
         if (currentTime - m_lastUpdateTime > 100) 
@@ -563,11 +545,22 @@ void WordCloxel::readFromJsonState(JsonObject& root)
 */
 void WordCloxel::addToConfig(JsonObject& root)
 {
+    BLECONFIG_LOG("**** addToConfig");
+
     JsonObject top = root.createNestedObject(F(_txtName));
 
     top[F("Active")] = m_configEnabled;
+
     top[F("Layout")] = m_configuration.layout;
+    top[F("Timezone")] = m_configuration.timezone;
     top[F("EffectMode")] = m_configuration.effectMode;
+    top[F("ForegroundEffect")] = m_configuration.foregroundEffect;
+    top[F("ForegroundPalette")] = m_configuration.foregroundPalette;
+    top[F("ForegroundBrightness")] = m_configuration.foregroundBrightness;
+    top[F("BackgroundEffect")] = m_configuration.backgroundEffect;
+    top[F("BackgroundPalette")] = m_configuration.backgroundPalette;
+    top[F("BackgroundBrightness")] = m_configuration.backgroundBrightness;
+    top[F("IntroPalette")] = m_configuration.introPalette;
 }
 
 /*
@@ -597,13 +590,31 @@ void WordCloxel::appendConfigData()
 */
 bool WordCloxel::readFromConfig(JsonObject& root)
 {
+    BLECONFIG_LOG("**** readFromConfig");
+
     JsonObject top = root[F(_txtName)];
 
     bool configComplete = !top.isNull();
 
     configComplete &= getJsonValue(top[F("Active")], m_configEnabled);
     configComplete &= getJsonValue(top[F("Layout")], m_configuration.layout);
+    configComplete &= getJsonValue(top[F("Timezone")], m_configuration.timezone);
     configComplete &= getJsonValue(top[F("EffectMode")], m_configuration.effectMode);
+    configComplete &= getJsonValue(top[F("ForegroundEffect")], m_configuration.foregroundEffect);
+    configComplete &= getJsonValue(top[F("ForegroundPalette")], m_configuration.foregroundPalette);
+    configComplete &= getJsonValue(top[F("ForegroundBrightness")], m_configuration.foregroundBrightness);
+    configComplete &= getJsonValue(top[F("BackgroundEffect")], m_configuration.backgroundEffect);
+    configComplete &= getJsonValue(top[F("BackgroundPalette")], m_configuration.backgroundPalette);
+    configComplete &= getJsonValue(top[F("BackgroundBrightness")], m_configuration.backgroundBrightness);
+    configComplete &= getJsonValue(top[F("IntroPalette")], m_configuration.introPalette);
+
+    currentTimezone = m_configuration.timezone;
+
+    // Refresh the screen with the new settings
+    strip.suspend();
+    setLayout();
+    setupEffects();
+    strip.resume();
 
     return configComplete;
 }

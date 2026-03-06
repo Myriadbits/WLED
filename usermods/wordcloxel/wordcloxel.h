@@ -35,19 +35,19 @@ typedef struct SConfigItems
     uint8_t layout;
     uint8_t timezone;
     uint8_t effectMode;
-    uint8_t foregroundEffect;
-    uint8_t foregroundPalette;
     uint8_t backgroundEffect;
     uint8_t backgroundPalette;
-    uint8_t brightness;
     uint8_t backgroundBrightness;
+    uint8_t foregroundEffect;
+    uint8_t foregroundPalette;
+    uint8_t foregroundBrightness;
+    uint8_t introPalette;
     uint8_t lastCommand;
     uint32_t time;
     uint8_t ipAddress1;
     uint8_t ipAddress2;
     uint8_t ipAddress3;
     uint8_t ipAddress4;
-    uint8_t introPalette;
 } SConfigItems;
 
 // TODO All configuration items
@@ -133,27 +133,27 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
     EEffectMode m_lastEffectMode {EEffectMode::None};
     SConfigItems m_configuration {
         .layout = 0,
-        .timezone = 1,
+        .timezone = WLED_TIMEZONE,
         .effectMode = (uint8_t) EEffectMode::Double,
-        .foregroundEffect = FX_MODE_TWINKLEFOX,
-        .foregroundPalette = 50, // Aurora
-        .backgroundEffect = FX_MODE_BREATH,
-        .backgroundPalette = 1, // Random
-        .brightness = 128,
+        .backgroundEffect = FX_MODE_TWINKLEFOX,
+        .backgroundPalette = 50, // Aurora
         .backgroundBrightness = 128,
+        .foregroundEffect = FX_MODE_BREATH,
+        .foregroundPalette = 1, // Random
+        .foregroundBrightness = 128,
+        .introPalette = 37, // Cyane (also nice 26 or 34)
+
         .lastCommand = 0,
         .time = 0,
         .ipAddress1 = 0,
         .ipAddress2 = 0,
         .ipAddress3 = 0,
         .ipAddress4 = 0,
-
-        .introPalette = 37 // Cyane (also nice 26 or 34)
      };
 
   public:
     void setup() override;
-    void setupEffects(EEffectMode newEffect);
+    void setupEffects();
     void connected() override;  
     void loop() override;
     void handleOverlayDraw() override;
