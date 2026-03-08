@@ -2,7 +2,7 @@
 
 #include "BLEConfigItemBase.h"
 
-#define MULTISETTING_MAX_SETTINGS 16    
+#define MULTISETTING_MAX_SETTINGS 32    
 
 ///////////////////////////////////////////////////////////////////////////////
 // Single MIOT Configuration item
@@ -10,17 +10,16 @@
 class BLEConfigItemMultiSetting : public BLEConfigItemBase
 {
 public:
-    BLEConfigItemMultiSetting(uint16_t id)
+    BLEConfigItemMultiSetting(uint16_t id, int version)
         : BLEConfigItemBase(id, EConfigType::CT_MULTI)
+        , m_version(version)
     {        
     }
 
-    uint8_t getVersion() { return m_version;}
-    void setVersion(const uint8_t newValue) { m_version = newValue; }
-
     uint8_t getValue(int idx);
+    uint8_t* getData();
     void setValue(int idx, const uint8_t newValue);
-
+    void setData(uint8_t* pNewData, uint8_t length);
 
 protected:
     virtual int onEncodeData(uint8_t *pdata, int dataLen, int idx);

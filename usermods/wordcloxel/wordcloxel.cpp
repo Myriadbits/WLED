@@ -184,6 +184,12 @@ void WordCloxel::loop()
             m_vecWordsWeekday.clear();
             m_vecWordsSecond.clear();
             m_vecWordsExtra.clear();
+
+            // Update the configuration with some static info
+            m_configuration.ipAddress1 = Network.localIP()[0];
+            m_configuration.ipAddress2 = Network.localIP()[1];
+            m_configuration.ipAddress3 = Network.localIP()[2];
+            m_configuration.ipAddress4 = Network.localIP()[3];
             
             switch (m_displayMode)
             {
@@ -608,6 +614,14 @@ bool WordCloxel::readFromConfig(JsonObject& root)
     configComplete &= getJsonValue(top[F("BackgroundBrightness")], m_configuration.backgroundBrightness);
     configComplete &= getJsonValue(top[F("IntroPalette")], m_configuration.introPalette);
 
+    refreshConfiguration();
+
+    return configComplete;
+}
+
+/// @brief Refresh the screen/effects 
+void WordCloxel::refreshConfiguration()
+{    
     currentTimezone = m_configuration.timezone;
 
     // Refresh the screen with the new settings
@@ -615,8 +629,6 @@ bool WordCloxel::readFromConfig(JsonObject& root)
     setLayout();
     setupEffects();
     strip.resume();
-
-    return configComplete;
 }
 
 //
@@ -625,6 +637,9 @@ bool WordCloxel::readFromConfig(JsonObject& root)
 void WordCloxel::onBluetoothConnection(bool connected)
 {   
     m_isBTConnected = connected;
+
+    // Copy data to BLE settings
+    m_bleMultiSetting.setData((uint8_t*) &m_configuration, sizeof(m_configuration));
 }
 
 //
@@ -639,7 +654,7 @@ void WordCloxel::onConfigItemChanged(BLEConfigItemBase *pconfigItem)
             case SID_WIFI:
                 {
                     // WiFi config has changed, we can react to it here if needed
-                    BLECONFIG_LOG("SID WiFi");
+                    BLECONFIG_LOG("Incoming SID WiFi");
                     BLEConfigItemWiFi* pconfig = (BLEConfigItemWiFi*) pconfigItem;
                     if (pconfig != NULL)
                     {
@@ -672,7 +687,15 @@ void WordCloxel::onConfigItemChanged(BLEConfigItemBase *pconfigItem)
 
             case SID_MULTISETTING:
                 {                    
-                    //m_configLayout = m_bleLayout.getValue();
+                    BLECONFIG_LOG("Incoming SID MultiSetting");
+                    BLEConfigItemMultiSetting* pconfig = (BLEConfigItemMultiSetting*) pconfigItem;
+                    if (pconfig != NULL)
+                    {
+                        // Do a plain copy to get the new settings
+                        memcpy(&m_configuration, pconfig->getData(), sizeof(m_configuration));
+
+                        refreshConfiguration();
+                    }                    
                 }
                 break;
         }

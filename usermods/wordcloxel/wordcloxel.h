@@ -43,6 +43,7 @@ typedef struct SConfigItems
     uint8_t foregroundBrightness;
     uint8_t introPalette;
     uint8_t lastCommand;
+    uint8_t dummy1; // To align to 32 bit
     uint32_t time;
     uint8_t ipAddress1;
     uint8_t ipAddress2;
@@ -50,44 +51,40 @@ typedef struct SConfigItems
     uint8_t ipAddress4;
 } SConfigItems;
 
+
 // TODO All configuration items
-#define SID_WIFI                    1
-#define SID_MULTISETTING            2
+#define SID_WIFI                     1
+#define SID_COMMAND                 42
+#define SID_MULTISETTING            50
 
-// Multi config settings
-#define MC_LAYOUT                   0
-#define MC_IMEZONE                  1
+#define MULTiSETTINGS_VERSION        1
 
-#define MC_FG_MODE                  2
-#define MC_FG_EFFECT                3
-#define MC_FG_PALETTE               4
-#define MC_BK_EFFECT                5
-#define MC_BK_PALETTE               6
+// #define CONFIG_LOCATION                 2
+// #define CONFIG_LAYOUT                   3
+// #define CONFIG_TIMEZONE                 5
+// #define CONFIG_DAYLIGHTSAVING           6
 
-#define MC_BRIGHTNESS               7
-#define MC_BK_BRIGHTNESS            8
+// #define CONFIG_COLOR_TIME               10
+// #define CONFIG_COLOR_WEEKDAY            11
+// #define CONFIG_COLOR_DATE               12
+// #define CONFIG_COLOR_BACKGROUND         13
+// #define CONFIG_BRIGHTNESS_DAY           14
+// #define CONFIG_BRIGHTNESS_NIGHT         15
+// #define CONFIG_BRIGHTNESS_BACKGROUND    16
 
-#define MC_COMMAND                  9
+// #define CONFIG_OPTIONS_TIME             20
+// #define CONFIG_OPTIONS_WEEKDAY          21
+// #define CONFIG_OPTIONS_DATE             22
+// #define CONFIG_OPTIONS_CLOXEL           23
 
-#define MC_TIME_1                   10 
-#define MC_TIME_2                   11
-#define MC_TIME_3                   12
-#define MC_TIME_4                   13
-
-#define MC_IPADDRESS_1              14 
-#define MC_IPADDRESS_2              15
-#define MC_IPADDRESS_3              16
-#define MC_IPADDRESS_4              17
-
-#define MC_INTRO_PALETTE            50
-
-
+// #define CONFIG_NAME                     30
 
 #define WORDCLOCK_MANUFACTURER          "www.cloxel.nl"
 #define WORDCLOCK_MODEL                 "Wordcloxel"
 #define WORDCLOCK_VERSION               "2.1.0"
 #define WORDCLOCK_DEFAULTNAME           "Wordcloxel"
 #define WORDCLOCK_DEFAULTLOCATION       "Home"
+
 
 /*
  * Word cloxel usermod to display the correct time & date in words on a cloxel matrix
@@ -115,7 +112,7 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
     // BLE Config items
     BLEConfig  m_bleconfig {WORDCLOCK_MODEL, WORDCLOCK_MANUFACTURER, WORDCLOCK_VERSION, 256}; // 256 = Clock TODO VERSION
     BLEConfigItemWiFi m_bleWiFi {SID_WIFI};
-    BLEConfigItemMultiSetting m_bleMultiSetting {SID_MULTISETTING };   
+    BLEConfigItemMultiSetting m_bleMultiSetting {SID_MULTISETTING, MULTiSETTINGS_VERSION };   
 
     // Config variables
     bool m_configEnabled {true};
@@ -177,5 +174,6 @@ private:
     void modifyBackground();
     void addWordToLeds(uint8_t segment, const ledpos_t* pWord, CRGB color, int idx, bool useForegroundEffect = true);
     void addWordsToLeds(uint8_t segment, std::vector<const ledpos_t*> rVecWords, CRGB defaultColor, int idx, bool useForegroundEffect = true);
+    void refreshConfiguration();
 };
 
