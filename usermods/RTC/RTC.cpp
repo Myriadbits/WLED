@@ -18,12 +18,13 @@ class RTCUsermod : public Usermod {
         toki.setTime(rtcTime,TOKI_NO_MS_ACCURACY,TOKI_TS_RTC);
         updateLocalTime();
       } else {
+        DEBUG_PRINTF_P(PSTR("Error, RTC not found!\n"));
         if (!RTC.chipPresent()) disabled = true; //don't waste time if H/W error
       }
     }
 
     void loop() {
-      if (disabled || strip.isUpdating()) return;
+      if (disabled) return;
       if (toki.isTick()) {
         time_t t = toki.second();
         if (t != RTC.get())
