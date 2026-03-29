@@ -7,9 +7,8 @@
 
 //
 // Constructor, create/fill this config item
-BLEConfigItemBase::BLEConfigItemBase(uint16_t id, const EConfigType type)
+BLEConfigItemBase::BLEConfigItemBase(uint16_t id)
     : m_id(id)
-    , m_eType(type)
 {
 }
 
@@ -20,22 +19,8 @@ BLEConfigItemBase::BLEConfigItemBase(uint16_t id, const EConfigType type)
 // Note that the buffer should (for now) hold at least 256 bytes
 int BLEConfigItemBase::encode(uint8_t *pdata, int dataLen)
 {
-    int slen = 0;
-    if (dataLen < 256) return 0; // TODO CALCULATE THE DESIRED BUFFER/DATALENGTH
-
-    // Small header with ID + Type
-    pdata[0] = m_id;
-    pdata[1] = (uint8_t) m_eType;
-
-    // Add the flags
-    pdata[2] = 0x00;
-    pdata[2] |= 0x01; // Secure or not
-
-    // Start at byte 3
-    int idx = 3;
-
     // Add the data
-    return onEncodeData(pdata, dataLen, idx);
+    return onEncodeData(pdata, dataLen, 0);
 }
 
 //

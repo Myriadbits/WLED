@@ -32,6 +32,7 @@ typedef enum class EEffectMode : uint8_t
 
 typedef struct SConfigItems
 {
+    uint8_t version;
     uint8_t layout;
     uint8_t timezone;
     uint8_t effectMode;
@@ -43,7 +44,6 @@ typedef struct SConfigItems
     uint8_t foregroundBrightness;
     uint8_t introPalette;
     uint8_t lastCommand;
-    uint8_t dummy1; // To align to 32 bit
     uint32_t time;
     uint8_t ipAddress1;
     uint8_t ipAddress2;
@@ -112,7 +112,7 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
     // BLE Config items
     BLEConfig  m_bleconfig {WORDCLOCK_MODEL, WORDCLOCK_MANUFACTURER, WORDCLOCK_VERSION, 256}; // 256 = Clock TODO VERSION
     BLEConfigItemWiFi m_bleWiFi {SID_WIFI};
-    BLEConfigItemMultiSetting m_bleMultiSetting {SID_MULTISETTING, MULTiSETTINGS_VERSION };   
+    BLEConfigItemMultiSetting m_bleMultiSetting {SID_MULTISETTING};   
 
     // Config variables
     bool m_configEnabled {true};

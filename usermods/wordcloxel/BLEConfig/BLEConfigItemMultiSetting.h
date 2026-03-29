@@ -10,9 +10,8 @@
 class BLEConfigItemMultiSetting : public BLEConfigItemBase
 {
 public:
-    BLEConfigItemMultiSetting(uint16_t id, int version)
-        : BLEConfigItemBase(id, EConfigType::CT_MULTI)
-        , m_version(version)
+    BLEConfigItemMultiSetting(uint16_t id)
+        : BLEConfigItemBase(id)
     {        
     }
 
@@ -26,6 +25,5 @@ protected:
     virtual void onDecodeData(std::string data);
 
 protected:
-    uint8_t        m_version {0};
     uint8_t        m_values[MULTISETTING_MAX_SETTINGS] {};
 };

@@ -16,7 +16,7 @@ class BLEConfigItemWiFi : public BLEConfigItemBase
 {
 public:
     BLEConfigItemWiFi(uint16_t id)
-        : BLEConfigItemBase(id, EConfigType::CT_WIFI)
+        : BLEConfigItemBase(id)
     {        
     }
 

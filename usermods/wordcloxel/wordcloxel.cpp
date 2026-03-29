@@ -602,6 +602,7 @@ bool WordCloxel::readFromConfig(JsonObject& root)
 
     bool configComplete = !top.isNull();
 
+    m_configuration.version = MULTiSETTINGS_VERSION;
     configComplete &= getJsonValue(top[F("Active")], m_configEnabled);
     configComplete &= getJsonValue(top[F("Layout")], m_configuration.layout);
     configComplete &= getJsonValue(top[F("Timezone")], m_configuration.timezone);
@@ -691,10 +692,12 @@ void WordCloxel::onConfigItemChanged(BLEConfigItemBase *pconfigItem)
                     BLEConfigItemMultiSetting* pconfig = (BLEConfigItemMultiSetting*) pconfigItem;
                     if (pconfig != NULL)
                     {
-                        // Do a plain copy to get the new settings
-                        memcpy(&m_configuration, pconfig->getData(), sizeof(m_configuration));
-
-                        refreshConfiguration();
+                        if (pconfig->getData()[0] == MULTiSETTINGS_VERSION)
+                        {
+                            // Do a plain copy to get the new settings
+                            memcpy(&m_configuration, pconfig->getData(), sizeof(m_configuration));
+                            refreshConfiguration();
+                        }
                     }                    
                 }
                 break;

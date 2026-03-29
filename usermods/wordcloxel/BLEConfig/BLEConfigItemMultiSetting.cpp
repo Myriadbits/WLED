@@ -12,7 +12,6 @@
 // returns the index of the last item
 int BLEConfigItemMultiSetting::onEncodeData(uint8_t *pdata, int dataLen, int idx)
 {
-    pdata[idx++] = m_version;
     for(int i = 0; i < MULTISETTING_MAX_SETTINGS; i++)
     {
         pdata[idx++] = m_values[i];
@@ -26,16 +25,9 @@ void BLEConfigItemMultiSetting::onDecodeData(std::string data)
 {
     if (data.length() > 0)
     {
-        if (m_version == (uint8_t) data[0])
+        for(int i = 0; i < MULTISETTING_MAX_SETTINGS; i++)
         {
-            for(int i = 0; i < MULTISETTING_MAX_SETTINGS; i++)
-            {
-                m_values[i] = (uint8_t) data[i + 1];
-            }
-        }
-        else
-        {
-            BLECONFIG_LOG("Decoded unknown multisettings version (%d)", data[0]);
+            m_values[i] = (uint8_t) data[i];
         }
     }
 }

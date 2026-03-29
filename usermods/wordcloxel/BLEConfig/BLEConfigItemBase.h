@@ -40,11 +40,10 @@ enum EConfigType : uint8_t
 class BLEConfigItemBase
 {
 public:
-    BLEConfigItemBase(uint16_t id, const EConfigType type);
+    BLEConfigItemBase(uint16_t id);
 
     // Properties
     uint16_t getId() { return m_id;}
-    EConfigType getType() { return m_eType;}
 
     void setCharacteristic(BLECharacteristic* pChar) { m_pChar = pChar; }
     uint8_t updateCharacteristicValue(bool shouldNotify = false);
@@ -63,7 +62,5 @@ protected:
       
 private:
     uint16_t            m_id; // Unique ID 
-    EConfigType         m_eType; // The config item type
-    const char*         m_pSynopsis = nullptr; // Short description
     BLECharacteristic*  m_pChar; // Pointer to the characteristic
 };
