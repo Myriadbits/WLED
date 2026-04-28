@@ -75,8 +75,6 @@ void WordCloxel::setup()
     // Setup RTC
     i2c_sda = 21;
     i2c_scl = 22;
-    //PinManagerPinType i2c[2] = { { i2c_sda, true }, { i2c_scl, true } };
-    //PinManager::allocateMultiplePins(i2c, 2, PinOwner::HW_I2C);
 
     // 25560 => 61360
     // Load/initialize all BLE Config settings
@@ -89,9 +87,12 @@ void WordCloxel::setup()
 
     sleep(0.5);
 
+    m_configuration.effectMode = (uint8_t) EEffectMode::Double;
+
     // Setup all the effects
-    //setupEffects(EEffectMode::Foreground);
     setupEffects();
+
+    refreshConfiguration();
 }
 
 
@@ -153,19 +154,7 @@ void WordCloxel::setLayout()
 void WordCloxel::loop() 
 {
     if (m_configEnabled) 
-    {
-        // Get the correct clock layout
-        //setLayout();
-
-        // Update effects when changed by the UserMode page
-        // if (((EEffectMode) m_configuration.effectMode) != m_lastEffectMode)
-        // {
-        //     strip.suspend();
-        //     setupEffects();
-        //     strip.resume();
-        //     m_lastEffectMode = (EEffectMode) m_configuration.effectMode;
-        // }
-
+    {   
         unsigned long currentTime = millis();
         if (currentTime - m_lastUpdateTime > 100) 
         { 
@@ -196,10 +185,6 @@ void WordCloxel::loop()
                 case EDisplayMode::Initializing:         
                     if (m_displayCounter > CLOXEL_STARTUP_TOTAL_TICKS)
                     {    
-                        // Start the BLE Config stuff
-                        // This will also load all previously stored settings
-                        //m_bleconfig.start(this); // TODO MAYBE THIS SHOULD BE DONE IN THE SETUP?
-                  
                         if (year(localTime) > 2025)
                         {
                             m_displayCounter = 0;
@@ -226,10 +211,7 @@ void WordCloxel::loop()
                     break;
 
                 case EDisplayMode::Normal:
-                    if (m_displayCounter < 1600)
-                        strip.setBrightness(m_displayCounter / 40, true);
-                    else
-                        strip.setBrightness(40, true); // Was 128 => TODO Make this a config option
+                    strip.setBrightness(m_configuration.foregroundBrightness, true);
 
                     // Determine the words to display
                     ClockTimeWordConvertor::convertHoursAndMinutes(m_pCloxelLayout, m_vecWordsTime);
@@ -297,10 +279,7 @@ void WordCloxel::addWordToLeds(uint8_t segment, const ledpos_t* pWord, CRGB colo
         {
             col = seg.getPixelColorXY(ledPos.x, ledPos.y);  
         }
-        //strip.setPixelColorXY(ledPos.x, ledPos.y, color);
-        //seg.setPixelColorXY(ledPos.x, ledPos.y, RGBW32(0, 0, 0, 0));
         strip.setPixelColorXY(ledPos.x, ledPos.y, col);
-        //strip.setPixelColorXY(ledPos.x, ledPos.y, ColorFromPalette(SEGPALETTE, idx, 255, LINEARBLEND));
         
         // Next char
         charIndex++;
@@ -328,12 +307,7 @@ void WordCloxel::showCloxelIntro()
     m_displayCounter++;
     if (m_displayCounter < CLOXEL_STARTUP_WAIT_TICKS)
         return; // Wait a while to initialize stuff
-
-    // if (m_introY >= 15)
-    // {
-    //     value = 127 * (1.0f - cos_approx((m_displayCounter - CLOXEL_STARTUP_WAIT_TICKS) * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS));        
-    // }
-    
+  
     int pal = m_configuration.introPalette;
     CRGBPalette16 palette = CRGBPalette16();
     byte tcp[72];
@@ -349,7 +323,6 @@ void WordCloxel::showCloxelIntro()
             m_introX = 0;
             m_introY++;
         }             
-        //strip.setPixelColorXY(m_introX, m_introY, color_fade((uint32_t)fastledPalettes[palette][(m_introY - 5) % 16] << 8, (uint8_t)value));
         strip.setPixelColorXY(m_introX, m_introY, (uint32_t)targetPalette[(m_introY - 5) % 16]);
     }
 
@@ -364,7 +337,6 @@ void WordCloxel::showCloxelIntro()
         int startY = m_introY - 10;
         for(uint8_t y = startY; y < 16; y++)
         {
-            //strip.setPixelColorXY(15, y, color_fade((uint32_t)fastledPalettes[palette][(y - 5) % 16] << 8,(uint8_t)value));
             strip.setPixelColorXY(15, y, (uint32_t)targetPalette[(y - startY) % 16]);
         }
     }
@@ -372,7 +344,6 @@ void WordCloxel::showCloxelIntro()
     {
         for(uint8_t y = 5; y < m_introY; y++)
         {
-            //strip.setPixelColorXY(15, y, color_fade((uint32_t)fastledPalettes[palette][(y - 5) % 16] << 8,(uint8_t)value));
             strip.setPixelColorXY(15, y, (uint32_t)targetPalette[(y - 5) % 16]);
         }
     }
@@ -427,12 +398,6 @@ void WordCloxel::handleOverlayDraw()
             if (currentEffectMode == EEffectMode::Background)
             {
                 modifyBackground();
-                // Segment& seg0 = strip.getSegment(0);
-                // for(int i = 0; i < seg0.width() * seg0.height(); i++) 
-                // {
-                //     uint32_t c1 = strip.getPixelColor(i);
-                //     strip.setPixelColor(i, color_fade(c1, m_configuration.backgroundBrightness)); // blank out the segment
-                // }
             }
             else if (currentEffectMode == EEffectMode::Foreground || currentEffectMode == EEffectMode::None)
             {
@@ -460,6 +425,7 @@ void WordCloxel::handleOverlayDraw()
 
             // BT & WiFi
             float value2 = 127 * (cos_approx(m_displayCounter * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS) + 1.0f);
+            value2 /= 10; // Make the BT & No-WiFi very faint
             if (m_isBTConnected)
             {                
                 addWordToLeds(0, m_pCloxelLayout->extra.bluetooth, color_fade((uint32_t) CRGB(0, 130, 252), (uint8_t)value2), 0, false); // Actual BT color
@@ -467,7 +433,7 @@ void WordCloxel::handleOverlayDraw()
             if (!WiFi.isConnected())
             {
                 // Is this really such an issue that we need to show it on the clock? Maybe just show a small Wifi signal icon?
-                CRGB color = color_fade((uint32_t) CRGB(255, 0, 0), (uint8_t)value2);//RGBW32((int) value2, 0, 0, 0);
+                CRGB color = color_fade((uint32_t) CRGB(255, 0, 0), (uint8_t)value2);
                 addWordToLeds(0, m_pCloxelLayout->extra.no, color, 0, false);
                 addWordToLeds(0, m_pCloxelLayout->extra.wifi, color, 0, false);
             }
@@ -697,6 +663,8 @@ void WordCloxel::onConfigItemChanged(BLEConfigItemBase *pconfigItem)
                             // Do a plain copy to get the new settings
                             memcpy(&m_configuration, pconfig->getData(), sizeof(m_configuration));
                             refreshConfiguration();
+
+                            serializeConfigToFS();
                         }
                     }                    
                 }
