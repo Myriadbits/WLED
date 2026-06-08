@@ -206,6 +206,7 @@ static const ledclocklayout_t s_layoutEN_V1 =
         ENV1_lunch,
         ENV1_dinner,
         ENV1_time,
+        EMPTY
     },
 
     // 10x number

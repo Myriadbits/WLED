@@ -28,61 +28,68 @@ void ClockTimeWordConvertor::convertHoursAndMinutes(const ledclocklayout_t* pLay
 
     const ledtime_t* pTime = &(pLayout->time);
 
+    bool addHours = true;
     switch (pLayout->timeFormat)
     {
-    // case ETimeFormat::TF_NL_EVERYMIN:
-    //     {
-    //         pOutput->pMinutesMainWord = pTime->leadtext;
+    case ETimeFormat::TF_NL_EVERYMIN:
+        {
+            rVecOutput.push_back(pTime->leadtext);
 
-    //         // Quarter past 1 => 14 minutes to half two (in Dutch this is correct, English I don't know)
-    //         int quarterNum = nMinutes / 15;
-    //         min1 = nMinutes % 15;     
-    //         if (quarterNum > 0 && !(quarterNum == 1 && min1 == 0)) hours++; // Increase the hour, but do NOT increase when we are at exactly a quarter past
-    //         hours %= 12; // Limit hours to 12
+            // Quarter past 1 => 14 minutes to half two (in Dutch this is correct, English I don't know)
+            int quarterNum = nMinutes / 15;
+            min1 = nMinutes % 15;     
+            if (quarterNum > 0 && !(quarterNum == 1 && min1 == 0)) hours++; // Increase the hour, but do NOT increase when we are at exactly a quarter past
+            hours %= 12; // Limit hours to 12
             
-    //         // Determine to/past
-    //         if (min1 == 0)
-    //         {
-    //             // Specials quarters:
-    //             switch (quarterNum)             
-    //             {
-    //                 case 0:                
-    //                     pOutput->pMinutesRestWord = pTime->hour_full;
-    //                     pOutput->pToPastWord = NULL; 
-    //                     break;
-    //                 case 1:                
-    //                     pOutput->pMinutesRestWord = pTime->quarter;
-    //                     pOutput->pToPastWord = pTime->past_15; 
-    //                     break;
-    //                 case 2:                
-    //                     pOutput->pMinutesRestWord = pTime->half_to;
-    //                     pOutput->pToPastWord = NULL; 
-    //                     break;
-    //                 case 3:                
-    //                     pOutput->pMinutesRestWord = pTime->quarter;
-    //                     pOutput->pToPastWord = pTime->to_15; 
-    //                     break;
-    //             }
-    //         }
-    //         else
-    //         {
-    //             pOutput->pToPastWord = pTime->past_5;
-    //             if (quarterNum == 1 || quarterNum == 3)
-    //             {
-    //                 min1 = 15 - min1;
-    //                 pOutput->pToPastWord = pTime->to_5;
-    //             }
-    //             if (nMinutes > 15 && nMinutes < 45)
-    //             {
-    //                 pOutput->pHalfWord = pTime->half_to;
-    //             }
-    //             const ledpos_t* pMinuteWords[15] {NULL,pTime->minute_1, pTime->minute_2, pTime->minute_3, pTime->minute_4, 
-    //                 pTime->minute_5, pTime->minute_6, pTime->minute_7, pTime->minute_8, pTime->minute_9, pTime->minute_10, 
-    //                 pTime->minute_11, pTime->minute_12, pTime->minute_13, pTime->minute_14};
-    //             pOutput->pMinutesRestWord = pMinuteWords[min1 % 15];
-    //         }               
-    //     }
-    //     break;
+            const ledpos_t* pMinuteWords[15] {NULL,pTime->minute_1, pTime->minute_2, pTime->minute_3, pTime->minute_4, 
+                    pTime->minute_5, pTime->minute_6, pTime->minute_7, pTime->minute_8, pTime->minute_9, pTime->minute_10, 
+                    pTime->minute_11, pTime->minute_12, pTime->minute_13, pTime->minute_14};
+
+            // Determine to/past
+            if (min1 == 0)
+            {
+                // Specials quarters:
+                switch (quarterNum)
+                {
+                    case 0:
+                        // Full hour, show the minute 1-12 as hour
+                        rVecOutput.push_back(pMinuteWords[hours % 12]);
+                        rVecOutput.push_back(pTime->hour_full);
+                        addHours = false;
+                        break;
+                    case 1:                
+                        rVecOutput.push_back(pTime->quarter);
+                        rVecOutput.push_back(pTime->past_15); 
+                        break;
+                    case 2:                
+                        rVecOutput.push_back(pTime->half_to);
+                        break;
+                    case 3:                
+                        rVecOutput.push_back(pTime->quarter);
+                        rVecOutput.push_back(pTime->to_15); 
+                        break;
+                }
+            }
+            else
+            {
+                if (quarterNum == 0 || quarterNum == 2)
+                {
+                    rVecOutput.push_back(pTime->past_5);
+                }
+                else if (quarterNum == 1 || quarterNum == 3)
+                {
+                    min1 = 15 - min1;
+                    rVecOutput.push_back(pTime->to_5);
+                }
+                if (nMinutes > 15 && nMinutes < 45)
+                {
+                    rVecOutput.push_back(pTime->half_to);
+                }
+                
+                rVecOutput.push_back(pMinuteWords[min1 % 15]);
+            }               
+        }
+        break;
     
     case ETimeFormat::TF_NL_5MIN:
         {
@@ -145,7 +152,10 @@ void ClockTimeWordConvertor::convertHoursAndMinutes(const ledclocklayout_t* pLay
     }
 
     // And finally, add the hour
-    rVecOutput.push_back(pLayout->hours[hours % 12]);
+    if (addHours)
+    {
+        rVecOutput.push_back(pLayout->hours[hours % 12]);
+    }
 }
 
 //

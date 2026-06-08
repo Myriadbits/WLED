@@ -100,9 +100,9 @@ extern byte realtimeMode;           // used in getMappedPixelIndex()
   #ifdef BOARD_HAS_PSRAM
     #define MAX_NUM_SEGMENTS  64
   #else
-    #define MAX_NUM_SEGMENTS  32
+    #define MAX_NUM_SEGMENTS  2 // Was 32
   #endif
-  #define MAX_SEGMENT_DATA  (64*1024) // 64k by default, limit does not apply if PSRAM is available
+  #define MAX_SEGMENT_DATA  (20*1024) // 64k by default, limit does not apply if PSRAM is available
 #endif
 
 /* How much data bytes each segment should max allocate to leave enough space for other segments,

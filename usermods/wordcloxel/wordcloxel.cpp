@@ -3,6 +3,8 @@
 #include "time_word_convertor.h"
 #include "cloxel_layout_en_v1.h"
 #include "cloxel_layout_nl_v1.h"
+#include "cloxel_layout_nl_min_v1.h"
+#include "src/dependencies/time/DS1307RTC.h"
 
 // #define WORDCLOCK_MANUFACTURER    "www.cloxel.nl"
 // #define WORDCLOCK_MODEL           "Wordcloxel"
@@ -16,9 +18,9 @@ const char WordCloxel::_txtNameLower[]  PROGMEM = "wordcloxel";
 const char WordCloxel::_txtMsg[]  PROGMEM = "msg";
 const char WordCloxel::_txtTime[]  PROGMEM = "time";
 constexpr int MINIMUM_INITIALIZE_TIME = 5000;
-constexpr int CLOXEL_STARTUP_WAIT_TICKS = 500;
+constexpr int CLOXEL_STARTUP_WAIT_TICKS = 150;
 constexpr int CLOXEL_STARTUP_CYCLE_TICKS = 200;
-constexpr int CLOXEL_STARTUP_CYCLES = 5;
+constexpr int CLOXEL_STARTUP_CYCLES = 3;
 constexpr int CLOXEL_STARTUP_TOTAL_TICKS = CLOXEL_STARTUP_WAIT_TICKS + (CLOXEL_STARTUP_CYCLE_TICKS * CLOXEL_STARTUP_CYCLES) + 100;
 constexpr uint32_t CLOXEL_STARTUP_COLOR = RGBW32(0xFF, 0x7E, 0, 0);
 constexpr float_t NUMBER_OF_SECOND_PULSES_PER_MINUTE = 20.0f;
@@ -143,6 +145,7 @@ void WordCloxel::setLayout()
     {
         case 0: m_pCloxelLayout = &s_layoutEN_V1; break;
         case 1: m_pCloxelLayout = &s_layoutNL_V1; break;
+        case 2: m_pCloxelLayout = &s_layoutNL_MIN_V1; break;
         default: m_pCloxelLayout = &s_layoutEN_V1; break;
     }
 }
@@ -236,7 +239,7 @@ void WordCloxel::loop()
                                 m_vecWordsExtra.push_back(m_pCloxelLayout->extra.dinner);
                                 break;
                             case EMessageMode::WordCloxel:
-                                m_vecWordsExtra.push_back(m_pCloxelLayout->extra.myriadbits);
+                                m_vecWordsExtra.push_back(m_pCloxelLayout->extra.cloxel);
                                 m_vecWordsExtra.push_back(m_pCloxelLayout->extra.word);
                                 break;
                             default:
@@ -304,11 +307,14 @@ void WordCloxel::showCloxelIntro()
     strip.fill(BLACK);
 
     float value = 255;
-    m_displayCounter++;
+    
     if (m_displayCounter < CLOXEL_STARTUP_WAIT_TICKS)
+    {
+        addWordToLeds(1, m_pCloxelLayout->extra.jb2, CLOXEL_STARTUP_COLOR, 0, false); 
         return; // Wait a while to initialize stuff
+    }
   
-    int pal = m_configuration.introPalette;
+    int pal = 34;//m_configuration.introPalette;
     CRGBPalette16 palette = CRGBPalette16();
     byte tcp[72];
     memcpy_P(tcp, (byte*)pgm_read_dword(&(gGradientPalettes[pal - (DYNAMIC_PALETTE_COUNT + FASTLED_PALETTE_COUNT)])), sizeof(tcp));
@@ -428,15 +434,15 @@ void WordCloxel::handleOverlayDraw()
             value2 /= 10; // Make the BT & No-WiFi very faint
             if (m_isBTConnected)
             {                
-                addWordToLeds(0, m_pCloxelLayout->extra.bluetooth, color_fade((uint32_t) CRGB(0, 130, 252), (uint8_t)value2), 0, false); // Actual BT color
+                addWordToLeds(segment, m_pCloxelLayout->extra.bluetooth, color_fade((uint32_t) CRGB(0, 130, 252), (uint8_t)value2), 0, false); // Actual BT color
             }
-            if (!WiFi.isConnected())
-            {
-                // Is this really such an issue that we need to show it on the clock? Maybe just show a small Wifi signal icon?
-                CRGB color = color_fade((uint32_t) CRGB(255, 0, 0), (uint8_t)value2);
-                addWordToLeds(0, m_pCloxelLayout->extra.no, color, 0, false);
-                addWordToLeds(0, m_pCloxelLayout->extra.wifi, color, 0, false);
-            }
+            // if (!WiFi.isConnected())
+            // {
+            //     // Is this really such an issue that we need to show it on the clock? Maybe just show a small Wifi signal icon?
+            //     CRGB color = color_fade((uint32_t) CRGB(255, 0, 0), (uint8_t)value2);
+            //     addWordToLeds(0, m_pCloxelLayout->extra.no, color, 0, false);
+            //     addWordToLeds(0, m_pCloxelLayout->extra.wifi, color, 0, false);
+            // }
         }
     }
 }
@@ -543,6 +549,7 @@ void WordCloxel::appendConfigData()
     oappend(F("dd=addDropdown('")); oappend(_txtName); oappend(F("','Layout');"));
     oappend(F("addOption(dd,'English V1',0);"));
     oappend(F("addOption(dd,'Dutch V2',1);"));
+    oappend(F("addOption(dd,'Dutch Minutes V1',2);"));
 
     oappend(F("dd=addDropdown('")); oappend(_txtName); oappend(F("','EffectMode');"));
     oappend(F("addOption(dd,'None',0);"));
@@ -662,6 +669,10 @@ void WordCloxel::onConfigItemChanged(BLEConfigItemBase *pconfigItem)
                         {
                             // Do a plain copy to get the new settings
                             memcpy(&m_configuration, pconfig->getData(), sizeof(m_configuration));
+
+                            BLECONFIG_LOG("Setting time to %ld", m_configuration.time);
+                            toki.setTime(m_configuration.time, TOKI_NO_MS_ACCURACY,TOKI_TS_RTC);
+
                             refreshConfiguration();
 
                             serializeConfigToFS();

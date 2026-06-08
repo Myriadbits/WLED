@@ -73,9 +73,9 @@ typedef struct {
     const ledpos_t *no;
     const ledpos_t *yes;
     const ledpos_t *wifi;
-    const ledpos_t *myriadclock;
+    const ledpos_t *cloxel;
     const ledpos_t *word; // From WORDcloxel (to have the word in another color)
-    const ledpos_t *myriadbits;
+    const ledpos_t *jb2;
     const ledpos_t *bluetooth;
     const ledpos_t *passcode;
     const ledpos_t *goodmorning;
@@ -88,6 +88,7 @@ typedef struct {
     const ledpos_t *lunch;
     const ledpos_t *dinner;
     const ledpos_t *time;
+    const ledpos_t *oops;
 } ledextra_t;
 
 // empty led position
