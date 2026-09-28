@@ -41,7 +41,8 @@ void ClockTimeWordConvertor::convertHoursAndMinutes(const ledclocklayout_t* pLay
             if (quarterNum > 0 && !(quarterNum == 1 && min1 == 0)) hours++; // Increase the hour, but do NOT increase when we are at exactly a quarter past
             hours %= 12; // Limit hours to 12
             
-            const ledpos_t* pMinuteWords[15] {NULL,pTime->minute_1, pTime->minute_2, pTime->minute_3, pTime->minute_4, 
+            // Note: at 0 hours: show the twelve hours
+            const ledpos_t* pMinuteWords[15] {pTime->minute_12, pTime->minute_1, pTime->minute_2, pTime->minute_3, pTime->minute_4, 
                     pTime->minute_5, pTime->minute_6, pTime->minute_7, pTime->minute_8, pTime->minute_9, pTime->minute_10, 
                     pTime->minute_11, pTime->minute_12, pTime->minute_13, pTime->minute_14};
 

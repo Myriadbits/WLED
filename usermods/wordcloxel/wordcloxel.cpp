@@ -321,7 +321,10 @@ void WordCloxel::addWordsToLeds(uint8_t segment, std::vector<const ledpos_t*> rV
 {
     for(const ledpos_t* pCurrentWord : rVecWords)
     {
-        addWordToLeds(segment, pCurrentWord, color, idx, useForegroundEffect);
+        if (pCurrentWord != nullptr)
+        {
+            addWordToLeds(segment, pCurrentWord, color, idx, useForegroundEffect);
+        }
     }
 }
 
