@@ -185,6 +185,7 @@ void BLEConfig::onWrite(BLECharacteristic* pCharacteristic)
     uint32_t uid = 0; 
     if (sscanf(pCharacteristic->getUUID().toString().c_str(), BLECONFIG_CHAR_CONFIG, &uid) == 1)
     {
+        m_lastBTActionTime = millis();
         BLECONFIG_LOG("Data received for config item %d", uid);
 
         // Find the matching config item
@@ -212,13 +213,22 @@ void BLEConfig::onWrite(BLECharacteristic* pCharacteristic)
     }
 }
 
+//
+// BLE Characteristic is written
+void BLEConfig::onRead(BLECharacteristic* pCharacteristic)
+{
+    m_lastBTActionTime = millis();
+}
+
+
 // BLEServer callbacks
 
 void BLEConfig::onConnect(BLEServer* pServer)
 {
-    BLECONFIG_LOG("onConnect");
+    BLECONFIG_LOG("OnConnect");
     BLEDevice::stopAdvertising();
     
+    m_lastBTActionTime = millis();
     m_isDeviceConnected = true;
     if (m_pCallBacks != NULL)
         m_pCallBacks->onBluetoothConnection(m_isDeviceConnected);
@@ -232,4 +242,17 @@ void BLEConfig::onDisconnect(BLEServer* pServer)
     m_isDeviceConnected = false;
     if (m_pCallBacks != NULL)
         m_pCallBacks->onBluetoothConnection(m_isDeviceConnected);
+}
+
+// Disconnect the client
+void BLEConfig::disconnectClient()
+{
+    if (m_pBLEServer != NULL)
+    {
+        for (auto &peer : m_pBLEServer->getPeerDevices(true)) 
+        {
+            BLECONFIG_LOG("Disconnecting client with connId %d", peer.first);
+            m_pBLEServer->disconnect(peer.first); // peer.first is the connId
+        }
+    }
 }

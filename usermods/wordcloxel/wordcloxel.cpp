@@ -26,6 +26,7 @@ constexpr uint32_t CLOXEL_STARTUP_COLOR = RGBW32(0xFF, 0x7E, 0, 0);
 constexpr float_t NUMBER_OF_SECOND_PULSES_PER_MINUTE = 20.0f;
 constexpr uint32_t NUMBER_OF_MILLIS_PER_PULSE = 3000;
 constexpr uint32_t RESTART_TIME_NOWIFI = 300000; // ms
+constexpr uint32_t DISCONNECT_TIMEOUT = 30000; // ms. Disconnect after 1 minute of inactivity.
 
 static CRGB g_colorLoop[] {CRGB::Olive, CRGB::Navy, CRGB::LightBlue, CRGB::Aqua, CRGB::Teal, CRGB::Green, CRGB::Silver, CRGB::Yellow, 
                            CRGB::Orange, CRGB::Red, CRGB::Maroon, CRGB::Fuchsia, CRGB::Purple, CRGB::Magenta, CRGB::White, CRGB::Lime} PROGMEM;
@@ -91,6 +92,9 @@ void WordCloxel::setup()
 
     m_configuration.effectMode = (uint8_t) EEffectMode::Double;
 
+    //m_configuration.foregroundColor = 0x636B2F; // Olive green
+    //m_configuration.foregroundColor = 0xF99963; // Amber/Mandarin color
+    
     // Setup all the effects
     setupEffects();
 
@@ -100,6 +104,8 @@ void WordCloxel::setup()
 
 void WordCloxel::setupEffects()
 {
+    BLECONFIG_LOG("----> setupEffects");
+
     if (strip.getSegmentsNum() != 1)
         strip.resetSegments();
 
@@ -120,6 +126,12 @@ void WordCloxel::setupEffects()
     seg1.mode = m_configuration.foregroundEffect;
     seg1.palette = m_configuration.foregroundPalette; 
     seg1.setOpacity(1);
+    if (seg1.mode == FX_MODE_STATIC)    
+    {
+        CRGB foregroundColor = CRGB(m_configuration.foregroundColorR, m_configuration.foregroundColorG, m_configuration.foregroundColorB);
+        seg1.colors[0] = (uint32_t) foregroundColor;
+        BLECONFIG_LOG("Setting color to %lu", foregroundColor);
+    }
 
     seg0.stop = 15;
     seg0.stop = 16;
@@ -168,6 +180,15 @@ void WordCloxel::loop()
             {
                 m_heapCounter = 0;
                 BLECONFIG_LOG("Heap now: %ld", getFreeHeapSize());
+            }
+
+            if (m_isBTConnected)
+            {
+                if (m_bleconfig.getLastBTActionTime() > 0 && (currentTime - m_bleconfig.getLastBTActionTime()) > DISCONNECT_TIMEOUT)
+                {
+                    BLECONFIG_LOG("No BT action for %lu ms, disconnecting", DISCONNECT_TIMEOUT);
+                    m_bleconfig.disconnectClient();
+                }
             }
 
             // Clear previous words
@@ -401,6 +422,13 @@ void WordCloxel::handleOverlayDraw()
             CRGB colWeekday = ColorFromPaletteWLED(SEGPALETTE, 40);
             CRGB colDate = ColorFromPaletteWLED(SEGPALETTE, 100);
 
+            if (m_configuration.foregroundEffect == FX_MODE_STATIC)
+            {
+                Segment& seg1 = strip.getSegment(1);
+                CRGB foregroundColor = CRGB(m_configuration.foregroundColorR, m_configuration.foregroundColorG, m_configuration.foregroundColorB);               
+                colTime = colWeekday = colDate = foregroundColor;
+            }
+
             if (currentEffectMode == EEffectMode::Background)
             {
                 modifyBackground();
@@ -436,13 +464,6 @@ void WordCloxel::handleOverlayDraw()
             {                
                 addWordToLeds(segment, m_pCloxelLayout->extra.bluetooth, color_fade((uint32_t) CRGB(0, 130, 252), (uint8_t)value2), 0, false); // Actual BT color
             }
-            // if (!WiFi.isConnected())
-            // {
-            //     // Is this really such an issue that we need to show it on the clock? Maybe just show a small Wifi signal icon?
-            //     CRGB color = color_fade((uint32_t) CRGB(255, 0, 0), (uint8_t)value2);
-            //     addWordToLeds(0, m_pCloxelLayout->extra.no, color, 0, false);
-            //     addWordToLeds(0, m_pCloxelLayout->extra.wifi, color, 0, false);
-            // }
         }
     }
 }
@@ -539,6 +560,9 @@ void WordCloxel::addToConfig(JsonObject& root)
     top[F("BackgroundPalette")] = m_configuration.backgroundPalette;
     top[F("BackgroundBrightness")] = m_configuration.backgroundBrightness;
     top[F("IntroPalette")] = m_configuration.introPalette;
+    top[F("ForegroundColorR")] = m_configuration.foregroundColorR;
+    top[F("ForegroundColorG")] = m_configuration.foregroundColorG;
+    top[F("ForegroundColorB")] = m_configuration.foregroundColorB;
 }
 
 /*
@@ -556,12 +580,6 @@ void WordCloxel::appendConfigData()
     oappend(F("addOption(dd,'Foreground',1);"));
     oappend(F("addOption(dd,'Background',2);"));
     oappend(F("addOption(dd,'Both',3);"));
-
-    // oappend(F("addInfo('")); oappend(_txtName); oappend(F(":Start hour', 1, '(0-23)');"));
-    // oappend(F("addInfo('")); oappend(_txtName); oappend(F(":Start minute', 1, '(0-59)');"));
-    // oappend(F("addInfo('")); oappend(_txtName); oappend(F(":End hour', 1, '(0-23)');"));
-    // oappend(F("addInfo('")); oappend(_txtName); oappend(F(":End minute', 1, '(0-59)');"));
-    // oappend(F("addInfo('")); oappend(_txtName); oappend(F(":Brightness', 1, '(%)');"));
 }
 
 /*
@@ -587,7 +605,9 @@ bool WordCloxel::readFromConfig(JsonObject& root)
     configComplete &= getJsonValue(top[F("BackgroundPalette")], m_configuration.backgroundPalette);
     configComplete &= getJsonValue(top[F("BackgroundBrightness")], m_configuration.backgroundBrightness);
     configComplete &= getJsonValue(top[F("IntroPalette")], m_configuration.introPalette);
-
+    configComplete &= getJsonValue(top[F("ForegroundColorR")], m_configuration.foregroundColorR);
+    configComplete &= getJsonValue(top[F("ForegroundColorG")], m_configuration.foregroundColorG);
+    configComplete &= getJsonValue(top[F("ForegroundColorB")], m_configuration.foregroundColorB);
     refreshConfiguration();
 
     return configComplete;
@@ -655,6 +675,7 @@ void WordCloxel::onConfigItemChanged(BLEConfigItemBase *pconfigItem)
                         BLECONFIG_LOG("Wifi configured: %d", WLED_WIFI_CONFIGURED);
 
                         BLECONFIG_LOG("Wifi connected: %d", Network.isConnected());
+                        m_configuration.networkStatus = Network.isConnected() ? 2 : 1;
                     }
                 }
                 break;
@@ -691,13 +712,6 @@ void WordCloxel::onConfigItemChanged(BLEConfigItemBase *pconfigItem)
 static WordCloxel usermod_wordcloxel;
 REGISTER_USERMOD(usermod_wordcloxel);
 
-
-// TODO:
-//  - Show cloxel at startup for X seconds
-//  - React to unconnected / connected => show no-wifi
-//     - Or use RTC time
-//  - Make sure the timings work on a clean  ESP32
-//  - Setup correct LED matrix layout on a clean ESP32
 
 // Debugging using:
 //DEBUG_PRINTF_P(PSTR(" value %df\n"), color);

@@ -30,7 +30,7 @@ typedef enum class EEffectMode : uint8_t
     Double,
 } EEffectMode;
 
-typedef struct SConfigItems
+typedef struct __attribute__((packed)) SConfigItems
 {
     uint8_t version;
     uint8_t layout;
@@ -49,6 +49,11 @@ typedef struct SConfigItems
     uint8_t ipAddress2;
     uint8_t ipAddress3;
     uint8_t ipAddress4;
+    uint8_t foregroundColorR;
+    uint8_t foregroundColorG;
+    uint8_t foregroundColorB;
+    uint8_t foregroundColorA;
+    uint8_t networkStatus;
 } SConfigItems;
 
 
@@ -146,6 +151,12 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
         .ipAddress2 = 0,
         .ipAddress3 = 0,
         .ipAddress4 = 0,
+
+        .foregroundColorR = 0x63, // Olive green
+        .foregroundColorG = 0x6B, // Olive green
+        .foregroundColorB = 0x2F, // Olive green
+        //.foregroundDateColor = 0x372F6B, // Purple
+        .networkStatus = 0,
      };
 
   public:

@@ -125,6 +125,8 @@ public:
 
     // Start the BLE Config services
     void start(IBLEConfigCallbacks* pCallBacks);   
+    unsigned long getLastBTActionTime() { return m_lastBTActionTime; }
+    void disconnectClient();
 
 protected:
 	virtual uint32_t onPassKeyRequest() { return 123456; }
@@ -139,12 +141,12 @@ protected:
 	virtual bool onConfirmPIN(uint32_t pin) { return true; };
 
     // BLECharacteristic callbacks
-
-	 void onWrite(BLECharacteristic* pCharacteristic);
+	void onWrite(BLECharacteristic* pCharacteristic) override;
+	void onRead(BLECharacteristic* pCharacteristic) override;
 
     // BLEServer callbacks
-    virtual void onConnect(BLEServer* pServer);
-    virtual void onDisconnect(BLEServer* pServer);
+    virtual void onConnect(BLEServer* pServer) override;
+    virtual void onDisconnect(BLEServer* pServer) override;
 
 private:
     void    addConfigCharacteristic(BLEService *pBLEConfigService, BLEConfigItemBase* pitem);
@@ -164,4 +166,5 @@ private:
     char             m_pDeviceName[MAX_DEVICE_NAME_LENGTH] = {0};
     int              m_appearance;
     bool             m_isDeviceConnected;
+    unsigned long    m_lastBTActionTime {0};
 };
