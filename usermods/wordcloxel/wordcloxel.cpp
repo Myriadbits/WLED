@@ -206,6 +206,7 @@ void WordCloxel::loop()
             m_configuration.ipAddress2 = Network.localIP()[1];
             m_configuration.ipAddress3 = Network.localIP()[2];
             m_configuration.ipAddress4 = Network.localIP()[3];
+            m_configuration.networkStatus = Network.isConnected() ? 2 : 1;
             
             switch (m_displayMode)
             {
