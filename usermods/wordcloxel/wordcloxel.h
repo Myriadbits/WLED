@@ -9,6 +9,7 @@ typedef enum class EDisplayMode : uint8_t
     None = 0,
     Initializing, 
     NotTime,
+    Updating,
     Normal
 } EDisplayMode;
 
@@ -86,7 +87,10 @@ typedef struct __attribute__((packed)) SConfigItems
 
 #define WORDCLOCK_MANUFACTURER          "www.cloxel.nl"
 #define WORDCLOCK_MODEL                 "Wordcloxel"
-#define WORDCLOCK_VERSION               "2.1.0"
+#ifndef CLOXEL_VERSION
+  #define CLOXEL_VERSION                "2.1.0" // Normally set with -D CLOXEL_VERSION in platformio_override.ini
+#endif
+#define WORDCLOCK_VERSION               CLOXEL_VERSION
 #define WORDCLOCK_DEFAULTNAME           "Wordcloxel"
 #define WORDCLOCK_DEFAULTLOCATION       "Home"
 
@@ -165,6 +169,7 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
     void connected() override;  
     void loop() override;
     void handleOverlayDraw() override;
+    void onUpdateBegin(bool init) override;
 
     void addToJsonInfo(JsonObject& root) override;
     void readFromJsonState(JsonObject& root) override;
@@ -182,6 +187,7 @@ class WordCloxel : public Usermod, public IBLEConfigCallbacks
 private:
     void setLayout();
     void showCloxelIntro();
+    void showUpdateProgress();
     void modifyBackground();
     void addWordToLeds(uint8_t segment, const ledpos_t* pWord, CRGB color, int idx, bool useForegroundEffect = true);
     void addWordsToLeds(uint8_t segment, std::vector<const ledpos_t*> rVecWords, CRGB defaultColor, int idx, bool useForegroundEffect = true);

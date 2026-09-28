@@ -54,6 +54,7 @@
 #include "BLEConfigItemBase.h"
 #include "BLEConfigItemWiFi.h"
 #include "BLEConfigItemMultiSetting.h"
+#include "BLEOta.h"
 
 // TODO Remove
 #define  BLECONFIG_DEBUG
@@ -78,6 +79,7 @@
 #define BLECONFIG_DEFAULT_MODELNAME          "WordCloxel"
 #define BLECONFIG_DEFAULT_MANUFACTURERNAME   "Myriadbits"
 #define BLECONFIG_DEFAULT_VERSION            "1.0.0"
+#define BLECONFIG_PREFERRED_MTU              517 // Max ATT MTU, allows ~500 byte OTA chunks
 #define BLECONFIG_DEFAULT_APPEARANCE         256 // Default to clock see also: https://developer.nordicsemi.com/nRF5_SDK/nRF51_SDK_v4.x.x/doc/html/group___b_l_e___a_p_p_e_a_r_a_n_c_e_s.html
 
 // BLE Defines
@@ -128,6 +130,11 @@ public:
     unsigned long getLastBTActionTime() { return m_lastBTActionTime; }
     void disconnectClient();
 
+    // Process pending work (firmware update), call this from the main loop
+    void loop() { m_ota.loop(); }
+    bool isOtaActive() const { return m_ota.isActive(); }
+    uint8_t getOtaProgress() const { return m_ota.getProgress(); }
+
 protected:
 	virtual uint32_t onPassKeyRequest() { return 123456; }
 	virtual void onPassKeyNotify(uint32_t pass_key) {};
@@ -167,4 +174,7 @@ private:
     int              m_appearance;
     bool             m_isDeviceConnected;
     unsigned long    m_lastBTActionTime {0};
+
+    // Firmware update over BLE
+    BLEOta           m_ota;
 };

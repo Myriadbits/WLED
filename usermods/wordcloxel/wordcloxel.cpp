@@ -166,9 +166,12 @@ void WordCloxel::setLayout()
 * loop() is called continuously. In this method we check if we are inside the configured period or not.
 * If inside the brightness will be set to the configured value. If not, the default brightness is used.
 */
-void WordCloxel::loop() 
+void WordCloxel::loop()
 {
-    if (m_configEnabled) 
+    // Firmware update over BLE (runs on every loop, not throttled)
+    m_bleconfig.loop();
+
+    if (m_configEnabled)
     {   
         unsigned long currentTime = millis();
         if (currentTime - m_lastUpdateTime > 100) 
@@ -182,7 +185,7 @@ void WordCloxel::loop()
                 BLECONFIG_LOG("Heap now: %ld", getFreeHeapSize());
             }
 
-            if (m_isBTConnected)
+            if (m_isBTConnected && !m_bleconfig.isOtaActive())
             {
                 if (m_bleconfig.getLastBTActionTime() > 0 && (currentTime - m_bleconfig.getLastBTActionTime()) > DISCONNECT_TIMEOUT)
                 {
@@ -376,6 +379,41 @@ void WordCloxel::showCloxelIntro()
     }
 }
 
+/// @brief Show the firmware update progress, the matrix fills up row by row
+void WordCloxel::showUpdateProgress()
+{
+    strip.fill(BLACK);
+
+    uint16_t numLeds = strip.getLengthTotal();
+    uint16_t numLit = ((uint32_t) m_bleconfig.getOtaProgress() * numLeds) / 255;
+
+    // The next led pulses to show the update is still running
+    float value = 127 * (cos_approx(m_displayCounter * M_TWOPI / (float_t)CLOXEL_STARTUP_CYCLE_TICKS) + 1.0f);
+    for (uint16_t i = 0; i <= numLit && i < numLeds; i++)
+    {
+        uint32_t color = (i < numLit) ? (uint32_t) CRGB(0, 130, 252) : color_fade((uint32_t) CRGB(0, 130, 252), (uint8_t)value);
+        strip.setPixelColorXY(i % 16, i / 16, color);
+    }
+}
+
+/*
+* Called by WLED (web OTA) and BLEOta before a firmware update starts (init = true)
+* and after an update has failed (init = false)
+*/
+void WordCloxel::onUpdateBegin(bool init)
+{
+    if (init)
+    {
+        m_displayMode = EDisplayMode::Updating;
+    }
+    else
+    {
+        // Restart the normal display cycle, loop() switches to the right mode
+        m_displayCounter = CLOXEL_STARTUP_TOTAL_TICKS + 1;
+        m_displayMode = EDisplayMode::Initializing;
+    }
+}
+
 void WordCloxel::modifyBackground()
 {
     Segment& seg0 = strip.getSegment(0);
@@ -402,6 +440,10 @@ void WordCloxel::handleOverlayDraw()
         if (m_displayMode == EDisplayMode::Initializing)
         {
             showCloxelIntro();
+        }
+        else if (m_displayMode == EDisplayMode::Updating)
+        {
+            showUpdateProgress();
         }
         else if (m_displayMode == EDisplayMode::NotTime)
         {

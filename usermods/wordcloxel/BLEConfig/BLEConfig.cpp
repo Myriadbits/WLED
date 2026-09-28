@@ -75,6 +75,7 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
    
     //Initialize the BLE stack
     BLEDevice::init(m_pDeviceName);
+    BLEDevice::setMTU(BLECONFIG_PREFERRED_MTU);
     BLECONFIG_LOG("BLE Initialized");
 
     m_pBLEServer = BLEDevice::createServer();
@@ -132,7 +133,10 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
 
     // Finally: start the service
     pBLEConfigService->start();
-     
+
+    // Firmware update service (not advertised, the app finds it after connecting)
+    m_ota.createService(m_pBLEServer, this);
+
     // Create + start the advertising
     BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
     pAdvertising->addServiceUUID(uuidDeviceInfo);
@@ -181,6 +185,13 @@ void BLEConfig::addConfigCharacteristic(BLEService *pBLEConfigService, BLEConfig
 // BLE Characteristic is written
 void BLEConfig::onWrite(BLECharacteristic* pCharacteristic)
 {
+    if (m_ota.isOtaCharacteristic(pCharacteristic))
+    {
+        m_lastBTActionTime = millis();
+        m_ota.onWrite(pCharacteristic);
+        return;
+    }
+
     // Parse the 
     uint32_t uid = 0; 
     if (sscanf(pCharacteristic->getUUID().toString().c_str(), BLECONFIG_CHAR_CONFIG, &uid) == 1)
@@ -237,6 +248,7 @@ void BLEConfig::onConnect(BLEServer* pServer)
 void BLEConfig::onDisconnect(BLEServer* pServer)
 {
     BLECONFIG_LOG("OnDisconnect");
+    m_ota.onDisconnect();
     BLEDevice::startAdvertising();
     
     m_isDeviceConnected = false;
