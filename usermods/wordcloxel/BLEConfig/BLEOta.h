@@ -29,7 +29,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include <BLEServer.h>
+#include <NimBLEDevice.h>
 #include <atomic>
 #include <mbedtls/sha256.h>
 
@@ -80,13 +80,13 @@ public:
 
     // Create the OTA service on the given server, writes are delivered to pCallbacks
     // (which should forward them to onWrite)
-    void    createService(BLEServer* pServer, BLECharacteristicCallbacks* pCallbacks);
+    void    createService(NimBLEServer* pServer, NimBLECharacteristicCallbacks* pCallbacks);
 
     // Returns true when the characteristic belongs to the OTA service
-    bool    isOtaCharacteristic(BLECharacteristic* pCharacteristic) const;
+    bool    isOtaCharacteristic(NimBLECharacteristic* pCharacteristic) const;
 
     // BLE callbacks (called from the BT task)
-    void    onWrite(BLECharacteristic* pCharacteristic);
+    void    onWrite(NimBLECharacteristic* pCharacteristic);
     void    onDisconnect();
 
     // Process pending work, call this from the main loop
@@ -113,8 +113,8 @@ private:
         Abort,
     };
 
-    BLECharacteristic*  m_pCharControl {nullptr};
-    BLECharacteristic*  m_pCharData {nullptr};
+    NimBLECharacteristic*  m_pCharControl {nullptr};
+    NimBLECharacteristic*  m_pCharData {nullptr};
 
     // Shared between the BT task and the loop
     std::atomic<EPendingCommand>    m_pendingCommand {EPendingCommand::None};

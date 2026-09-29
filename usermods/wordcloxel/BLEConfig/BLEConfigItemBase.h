@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Preferences.h> // We are dependent upon the preferences
-#include "BLECharacteristic.h"
+#include <NimBLEDevice.h>
 
 enum EConfigType : uint8_t
 {
@@ -45,7 +45,7 @@ public:
     // Properties
     uint16_t getId() { return m_id;}
 
-    void setCharacteristic(BLECharacteristic* pChar) { m_pChar = pChar; }
+    void setCharacteristic(NimBLECharacteristic* pChar) { m_pChar = pChar; }
     uint8_t updateCharacteristicValue(bool shouldNotify = false);
 
     virtual void onSetup() {};
@@ -62,5 +62,5 @@ protected:
       
 private:
     uint16_t            m_id; // Unique ID 
-    BLECharacteristic*  m_pChar; // Pointer to the characteristic
+    NimBLECharacteristic*  m_pChar {nullptr}; // Pointer to the characteristic
 };

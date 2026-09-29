@@ -2,11 +2,6 @@
 //#include <sys/param.h>
 
 #include "BLEConfig.h"
-#include "esp32-hal-bt.h"
-#include "esp_gap_ble_api.h"
-#include "esp_gatts_api.h"
-#include "esp_bt_defs.h"
-#include "esp_bt_main.h"
 #include "wled.h"
 
 //
@@ -74,37 +69,34 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
     BLECONFIG_LOG("- Version:  %s", m_pVersion);
    
     //Initialize the BLE stack
-    BLEDevice::init(m_pDeviceName);
-    BLEDevice::setMTU(BLECONFIG_PREFERRED_MTU);
+    NimBLEDevice::init(m_pDeviceName);
+    NimBLEDevice::setMTU(BLECONFIG_PREFERRED_MTU);
     BLECONFIG_LOG("BLE Initialized");
 
-    m_pBLEServer = BLEDevice::createServer();
-    m_pBLEServer->setCallbacks(this);
+    m_pBLEServer = NimBLEDevice::createServer();
+    m_pBLEServer->setCallbacks(this, false); // BLEConfig is a member of the usermod, never delete it
+    m_pBLEServer->advertiseOnDisconnect(false); // Advertising is restarted in onDisconnect
 
     // For BLE number, see: https://btprodspecificationrefs.blob.core.windows.net/assigned-values/16-bit%20UUID%20Numbers%20Document.pdf
     // For the different standard services, see: https://www.bluetooth.com/specifications/gatt/
 
     ///////////////////////////////////
     // Device information service
-    BLEUUID uuidDeviceInfo((uint16_t) 0x180a);
-    BLEService *pDeviceInfoService = m_pBLEServer->createService(uuidDeviceInfo, 16, 0);    
-       
+    NimBLEUUID uuidDeviceInfo((uint16_t) 0x180a);
+    NimBLEService *pDeviceInfoService = m_pBLEServer->createService(uuidDeviceInfo);
+
     // Manufacturer
-    BLECharacteristic *pCharManufacturer = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x2a29), BLECharacteristic::PROPERTY_READ);
-    pCharManufacturer->setAccessPermissions(ESP_GATT_PERM_READ);
-    pCharManufacturer->setValue((uint8_t*) m_pManufacturer, strlen(m_pManufacturer));    
+    NimBLECharacteristic *pCharManufacturer = pDeviceInfoService->createCharacteristic(NimBLEUUID((uint16_t) 0x2a29), NIMBLE_PROPERTY::READ);
+    pCharManufacturer->setValue((const uint8_t*) m_pManufacturer, strlen(m_pManufacturer));
     // Model
-    BLECharacteristic *pCharModel = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x2a24), BLECharacteristic::PROPERTY_READ);
-    pCharModel->setAccessPermissions(ESP_GATT_PERM_READ);
-    pCharModel->setValue(m_pModel);
+    NimBLECharacteristic *pCharModel = pDeviceInfoService->createCharacteristic(NimBLEUUID((uint16_t) 0x2a24), NIMBLE_PROPERTY::READ);
+    pCharModel->setValue((const uint8_t*) m_pModel, strlen(m_pModel));
     // Serial number
-    BLECharacteristic *pCharSerialNumber = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x2a25), BLECharacteristic::PROPERTY_READ);
-    pCharSerialNumber->setAccessPermissions(ESP_GATT_PERM_READ);
-    pCharSerialNumber->setValue(deviceId);  
-    // Software revision string    
-    BLECharacteristic *pCharRevision = pDeviceInfoService->createCharacteristic(BLEUUID((uint16_t) 0x2a28), BLECharacteristic::PROPERTY_READ);
-    pCharRevision->setAccessPermissions(ESP_GATT_PERM_READ);
-    pCharRevision->setValue(m_pVersion);
+    NimBLECharacteristic *pCharSerialNumber = pDeviceInfoService->createCharacteristic(NimBLEUUID((uint16_t) 0x2a25), NIMBLE_PROPERTY::READ);
+    pCharSerialNumber->setValue((const uint8_t*) deviceId, strlen(deviceId));
+    // Software revision string
+    NimBLECharacteristic *pCharRevision = pDeviceInfoService->createCharacteristic(NimBLEUUID((uint16_t) 0x2a28), NIMBLE_PROPERTY::READ);
+    pCharRevision->setValue((const uint8_t*) m_pVersion, strlen(m_pVersion));
 
     // char s[32];
     // IPAddress localIP = Network.localIP();
@@ -124,8 +116,8 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
 
     // BLEConfig service
     BLECONFIG_LOG("Starting BLE service with %d config items", m_vecConfigItems.size());
-    BLEUUID uuidBLEConfigService(BLECONFIG_SERVICE_UUID);
-    BLEService *pBLEConfigService = m_pBLEServer->createService(uuidBLEConfigService, m_vecConfigItems.size() * 4, 2);
+    NimBLEUUID uuidBLEConfigService(BLECONFIG_SERVICE_UUID);
+    NimBLEService *pBLEConfigService = m_pBLEServer->createService(uuidBLEConfigService);
     for (auto it : m_vecConfigItems)
     {
         addConfigCharacteristic(pBLEConfigService, it);
@@ -137,40 +129,39 @@ void BLEConfig::start(IBLEConfigCallbacks* pCallBacks)
     // Firmware update service (not advertised, the app finds it after connecting)
     m_ota.createService(m_pBLEServer, this);
 
+    // Set the security features (same as before: display only, secure connections + bonding).
+    // The characteristics do not require encryption, so this only applies when a client asks to pair.
+    NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
+    NimBLEDevice::setSecurityAuth(true, false, true);
+    BLECONFIG_LOG("Security setup completed");
+
     // Create + start the advertising
-    BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-    pAdvertising->addServiceUUID(uuidDeviceInfo);
+    // The 31 byte advertising packet holds: flags (3) + 128-bit config service (18) + 16-bit device info (4) + appearance (4).
+    // NimBLE silently drops UUIDs that do not fit, so the config service (the app scans for it) is added first.
+    // The device name goes into the scan response. Do not add setMin/MaxPreferred: those 6 bytes would push a UUID out.
+    NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
     pAdvertising->addServiceUUID(uuidBLEConfigService);
+    pAdvertising->addServiceUUID(uuidDeviceInfo);
     pAdvertising->setAppearance(m_appearance);
     pAdvertising->setScanResponse(true);
-    pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
-    pAdvertising->setMinPreferred(0x12);
 
-    BLEDevice::startAdvertising();
+    NimBLEDevice::startAdvertising();
     BLECONFIG_LOG("Advertising started");
-
-    // Set the security features
-    BLESecurity *pSecurity = new BLESecurity();
-    pSecurity->setCapability(ESP_IO_CAP_OUT);
-    pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
-    BLEDevice::setSecurityCallbacks(this);
-
-    BLECONFIG_LOG("Security setup completed");
 }
 
 //
 // Add a characteristic to the BLE Config service
 // Note that 'id' should be 1 or higher!
 // Returns the BLEUUID of the config item
-void BLEConfig::addConfigCharacteristic(BLEService *pBLEConfigService, BLEConfigItemBase* pitem)
+void BLEConfig::addConfigCharacteristic(NimBLEService *pBLEConfigService, BLEConfigItemBase* pitem)
 {
     char uuid[64];
     snprintf(uuid, 64, BLECONFIG_CHAR_CONFIG, pitem->getId());
-    BLEUUID uuidConfig(uuid);
-    
-    BLECharacteristic *pChar = pBLEConfigService->createCharacteristic(uuidConfig, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY);
-    //pChar->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED); // TODO CHANGE BACK WHEN WE WANT SECURITY
-    pChar->setAccessPermissions(ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE);
+    NimBLEUUID uuidConfig(uuid);
+
+    // NimBLE adds the CCCD (0x2902) for NOTIFY automatically.
+    // For encryption use NIMBLE_PROPERTY::READ_ENC | NIMBLE_PROPERTY::WRITE_ENC // TODO CHANGE WHEN WE WANT SECURITY
+    NimBLECharacteristic *pChar = pBLEConfigService->createCharacteristic(uuidConfig, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY);
     pChar->setCallbacks(this);
 
     // Let the config item know the characteristic it is linked too
@@ -183,7 +174,7 @@ void BLEConfig::addConfigCharacteristic(BLEService *pBLEConfigService, BLEConfig
 
 //
 // BLE Characteristic is written
-void BLEConfig::onWrite(BLECharacteristic* pCharacteristic)
+void BLEConfig::onWrite(NimBLECharacteristic* pCharacteristic)
 {
     if (m_ota.isOtaCharacteristic(pCharacteristic))
     {
@@ -205,7 +196,8 @@ void BLEConfig::onWrite(BLECharacteristic* pCharacteristic)
         {
             if (it != NULL && it->getId() == uid)
             {
-                it->decode(pCharacteristic->getValue());//, pCharacteristic->getData());
+                NimBLEAttValue value = pCharacteristic->getValue();
+                it->decode(std::string(value.c_str(), value.size()));
 
                 //BLECONFIG_LOG("Setting config item [%d]: '%s' to '%s'", uid, it->getName().c_str(), it->valueToString().c_str());
 
@@ -226,7 +218,7 @@ void BLEConfig::onWrite(BLECharacteristic* pCharacteristic)
 
 //
 // BLE Characteristic is written
-void BLEConfig::onRead(BLECharacteristic* pCharacteristic)
+void BLEConfig::onRead(NimBLECharacteristic* pCharacteristic)
 {
     m_lastBTActionTime = millis();
 }
@@ -234,10 +226,10 @@ void BLEConfig::onRead(BLECharacteristic* pCharacteristic)
 
 // BLEServer callbacks
 
-void BLEConfig::onConnect(BLEServer* pServer)
+void BLEConfig::onConnect(NimBLEServer* pServer)
 {
     BLECONFIG_LOG("OnConnect");
-    BLEDevice::stopAdvertising();
+    NimBLEDevice::stopAdvertising();
     
     m_lastBTActionTime = millis();
     m_isDeviceConnected = true;
@@ -245,11 +237,11 @@ void BLEConfig::onConnect(BLEServer* pServer)
         m_pCallBacks->onBluetoothConnection(m_isDeviceConnected);
 }
 
-void BLEConfig::onDisconnect(BLEServer* pServer)
+void BLEConfig::onDisconnect(NimBLEServer* pServer)
 {
     BLECONFIG_LOG("OnDisconnect");
     m_ota.onDisconnect();
-    BLEDevice::startAdvertising();
+    NimBLEDevice::startAdvertising();
     
     m_isDeviceConnected = false;
     if (m_pCallBacks != NULL)
@@ -261,10 +253,10 @@ void BLEConfig::disconnectClient()
 {
     if (m_pBLEServer != NULL)
     {
-        for (auto &peer : m_pBLEServer->getPeerDevices(true)) 
+        for (uint16_t connHandle : m_pBLEServer->getPeerDevices())
         {
-            BLECONFIG_LOG("Disconnecting client with connId %d", peer.first);
-            m_pBLEServer->disconnect(peer.first); // peer.first is the connId
+            BLECONFIG_LOG("Disconnecting client with connId %d", connHandle);
+            m_pBLEServer->disconnect(connHandle);
         }
     }
 }

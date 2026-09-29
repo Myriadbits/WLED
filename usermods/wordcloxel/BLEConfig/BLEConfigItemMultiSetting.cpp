@@ -25,7 +25,9 @@ void BLEConfigItemMultiSetting::onDecodeData(std::string data)
 {
     if (data.length() > 0)
     {
-        for(int i = 0; i < MULTISETTING_MAX_SETTINGS; i++)
+        // Never read past the received data (a shorter write keeps the remaining values)
+        size_t len = std::min(data.length(), (size_t) MULTISETTING_MAX_SETTINGS);
+        for(size_t i = 0; i < len; i++)
         {
             m_values[i] = (uint8_t) data[i];
         }

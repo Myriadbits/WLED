@@ -1,5 +1,7 @@
 {
-  "name:": "wordcloxel",
+  "name": "wordcloxel",
   "build": { "libArchive": false },
-  "dependencies": {}
+  "dependencies": {
+    "h2zero/NimBLE-Arduino": "1.4.3"
+  }
 }

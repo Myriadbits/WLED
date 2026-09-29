@@ -39,9 +39,7 @@
 
 #include <Preferences.h>
 
-#include <BLEDevice.h>
-//#include <BLEUtils.h>
-#include <BLEServer.h>
+#include <NimBLEDevice.h>
 
 #if defined(ARDUINO_ARCH_ESP8266)
     #include <ESP8266WiFi.h>
@@ -109,21 +107,18 @@ public:
 // BLEConfig
 // Automatic SmartConfig/Wifi connection
 ///////////////////////////////////////////////////////////////////////////////
-class BLEConfig : public BLESecurityCallbacks, public BLECharacteristicCallbacks, public BLEServerCallbacks
+// Uses the NimBLE-Arduino stack (much less RAM than the Bluedroid based Arduino BLE library).
+// NimBLE callbacks run in the NimBLE host task.
+class BLEConfig : public NimBLECharacteristicCallbacks, public NimBLEServerCallbacks
 {
 public:
-    BLEConfig(const char *pModel = BLECONFIG_DEFAULT_MODELNAME, 
-              const char *pManufacturer = BLECONFIG_DEFAULT_MANUFACTURERNAME, 
-              const char *pVersion = BLECONFIG_DEFAULT_VERSION, 
+    BLEConfig(const char *pModel = BLECONFIG_DEFAULT_MODELNAME,
+              const char *pManufacturer = BLECONFIG_DEFAULT_MANUFACTURERNAME,
+              const char *pVersion = BLECONFIG_DEFAULT_VERSION,
               int appearance = BLECONFIG_DEFAULT_APPEARANCE);
-    
+
     BLEConfigItemBase*    getConfigItem(const uint8_t id);
     void                  addConfigItem(BLEConfigItemBase* pitem);
-
-    static void gapEventHandler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
-    static void gattClientEventHandler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t* param);
-    static void gattServerEventHandler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t* param);
-    void init();
 
     // Start the BLE Config services
     void start(IBLEConfigCallbacks* pCallBacks);   
@@ -136,32 +131,29 @@ public:
     uint8_t getOtaProgress() const { return m_ota.getProgress(); }
 
 protected:
-	virtual uint32_t onPassKeyRequest() { return 123456; }
-	virtual void onPassKeyNotify(uint32_t pass_key) {};
-	virtual bool onSecurityRequest() { return false;};
-	virtual void onAuthenticationComplete(esp_ble_auth_cmpl_t)
+    // NimBLEServer security callbacks
+	uint32_t onPassKeyRequest() override { return 123456; }
+	void onAuthenticationComplete(ble_gap_conn_desc* desc) override
     {
         if (m_pCallBacks != NULL)
             m_pCallBacks->onBluetoothConnection(m_isDeviceConnected);
     }
+	bool onConfirmPIN(uint32_t pin) override { return true; };
 
-	virtual bool onConfirmPIN(uint32_t pin) { return true; };
+    // NimBLECharacteristic callbacks
+	void onWrite(NimBLECharacteristic* pCharacteristic) override;
+	void onRead(NimBLECharacteristic* pCharacteristic) override;
 
-    // BLECharacteristic callbacks
-	void onWrite(BLECharacteristic* pCharacteristic) override;
-	void onRead(BLECharacteristic* pCharacteristic) override;
-
-    // BLEServer callbacks
-    virtual void onConnect(BLEServer* pServer) override;
-    virtual void onDisconnect(BLEServer* pServer) override;
-
-private:
-    void    addConfigCharacteristic(BLEService *pBLEConfigService, BLEConfigItemBase* pitem);
-    void    addWiFiSSIDOptions(BLEConfigItemBase* pitem);
+    // NimBLEServer callbacks
+    void onConnect(NimBLEServer* pServer) override;
+    void onDisconnect(NimBLEServer* pServer) override;
 
 private:
-    IBLEConfigCallbacks*    m_pCallBacks; // Pointer to the callback interface
-    BLEServer*              m_pBLEServer; // The BLE server
+    void    addConfigCharacteristic(NimBLEService *pBLEConfigService, BLEConfigItemBase* pitem);
+
+private:
+    IBLEConfigCallbacks*    m_pCallBacks {nullptr}; // Pointer to the callback interface
+    NimBLEServer*           m_pBLEServer {nullptr}; // The BLE server
 
     // All config items
     std::vector<BLEConfigItemBase*>     m_vecConfigItems;

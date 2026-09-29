@@ -5,7 +5,7 @@
 
 #include "BLEOta.h"
 #include "BLEConfigItemBase.h" // BLECONFIG_LOG
-#include <BLE2902.h>
+
 #include <Update.h>
 #include "wled.h"
 
@@ -29,19 +29,16 @@ BLEOta::~BLEOta()
 
 //
 // Create the OTA service with its control and data characteristics
-void BLEOta::createService(BLEServer* pServer, BLECharacteristicCallbacks* pCallbacks)
+void BLEOta::createService(NimBLEServer* pServer, NimBLECharacteristicCallbacks* pCallbacks)
 {
-    // Handles: service (1) + control (3, incl. CCCD) + data (2) + spare
-    BLEService* pService = pServer->createService(BLEUUID(BLEOTA_SERVICE_UUID), 10, 0);
+    NimBLEService* pService = pServer->createService(NimBLEUUID(BLEOTA_SERVICE_UUID));
 
-    m_pCharControl = pService->createCharacteristic(BLEUUID(BLEOTA_CHAR_CONTROL_UUID),
-        BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY);
-    m_pCharControl->setAccessPermissions(ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE);
+    // NimBLE adds the CCCD (0x2902) for NOTIFY automatically
+    m_pCharControl = pService->createCharacteristic(NimBLEUUID(BLEOTA_CHAR_CONTROL_UUID),
+        NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY);
     m_pCharControl->setCallbacks(pCallbacks);
-    m_pCharControl->addDescriptor(new BLE2902());
 
-    m_pCharData = pService->createCharacteristic(BLEUUID(BLEOTA_CHAR_DATA_UUID), BLECharacteristic::PROPERTY_WRITE_NR);
-    m_pCharData->setAccessPermissions(ESP_GATT_PERM_WRITE);
+    m_pCharData = pService->createCharacteristic(NimBLEUUID(BLEOTA_CHAR_DATA_UUID), NIMBLE_PROPERTY::WRITE_NR);
     m_pCharData->setCallbacks(pCallbacks);
 
     updateReadValue();
@@ -49,7 +46,7 @@ void BLEOta::createService(BLEServer* pServer, BLECharacteristicCallbacks* pCall
     BLECONFIG_LOG("OTA service started");
 }
 
-bool BLEOta::isOtaCharacteristic(BLECharacteristic* pCharacteristic) const
+bool BLEOta::isOtaCharacteristic(NimBLECharacteristic* pCharacteristic) const
 {
     return pCharacteristic != nullptr && (pCharacteristic == m_pCharControl || pCharacteristic == m_pCharData);
 }
@@ -57,11 +54,11 @@ bool BLEOta::isOtaCharacteristic(BLECharacteristic* pCharacteristic) const
 //
 // Incoming write on one of the OTA characteristics (BT task)
 // Only parse and buffer here, the real work is done in loop()
-void BLEOta::onWrite(BLECharacteristic* pCharacteristic)
+void BLEOta::onWrite(NimBLECharacteristic* pCharacteristic)
 {
-    std::string value = pCharacteristic->getValue();
-    const uint8_t* pdata = (const uint8_t*) value.data();
-    size_t len = value.length();
+    NimBLEAttValue value = pCharacteristic->getValue();
+    const uint8_t* pdata = value.data();
+    size_t len = value.size();
 
     if (pCharacteristic == m_pCharControl)
     {
