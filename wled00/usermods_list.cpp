@@ -86,6 +86,10 @@
   #include "../usermods/multi_relay/usermod_multi_relay.h"
 #endif
 
+#ifdef USERMOD_WORDCLOXEL
+  Usermod* getWordCloxelUsermod(); // defined in usermods/wordcloxel/wordcloxel.cpp
+#endif
+
 #ifdef USERMOD_RTC
   #include "../usermods/RTC/usermod_rtc.h"
 #endif
@@ -250,6 +254,11 @@ void registerUsermods()
    * \/ \/ \/
    */
   //UsermodManager::add(new MyExampleUsermod());
+
+  #ifdef USERMOD_WORDCLOXEL
+  // must be added before RTC, it sets the I2C pins used by the RTC usermod
+  UsermodManager::add(getWordCloxelUsermod());
+  #endif
 
   #ifdef USERMOD_BATTERY
   UsermodManager::add(new UsermodBattery());

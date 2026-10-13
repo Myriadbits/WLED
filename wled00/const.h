@@ -547,6 +547,8 @@
 #define TOUCH_THRESHOLD 32 // limit to recognize a touch, higher value means more sensitive
 
 // Size of buffer for API JSON object (increase for more segments)
+// Cloxel: can be overridden with -D JSON_BUFFER_SIZE=... (see platformio_override.ini)
+#ifndef JSON_BUFFER_SIZE
 #ifdef ESP8266
   #define JSON_BUFFER_SIZE 10240
 #else
@@ -555,6 +557,7 @@
   #else
     #define JSON_BUFFER_SIZE 32767
   #endif
+#endif
 #endif
 
 //#define MIN_HEAP_SIZE (8k for AsyncWebServer)

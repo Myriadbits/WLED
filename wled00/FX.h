@@ -71,10 +71,13 @@
   #ifndef MAX_NUM_SEGMENTS
     #define MAX_NUM_SEGMENTS  32
   #endif
+  // Cloxel: can be overridden with -D MAX_SEGMENT_DATA=... (see platformio_override.ini)
+  #ifndef MAX_SEGMENT_DATA
   #if defined(ARDUINO_ARCH_ESP32S2)
     #define MAX_SEGMENT_DATA  MAX_NUM_SEGMENTS*768 // 24k by default (S2 is short on free RAM)
   #else
     #define MAX_SEGMENT_DATA  MAX_NUM_SEGMENTS*1280 // 40k by default
+  #endif
   #endif
 #endif
 

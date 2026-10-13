@@ -16,18 +16,24 @@ class RTCUsermod : public Usermod {
       RTC.begin();
       time_t rtcTime = RTC.get();
       if (rtcTime) {
+        DEBUG_PRINTF_P(PSTR("RTC time found: %u\n"), (unsigned)rtcTime);
         toki.setTime(rtcTime,TOKI_NO_MS_ACCURACY,TOKI_TS_RTC);
         updateLocalTime();
       } else {
+        DEBUG_PRINTF_P(PSTR("Error, RTC not found!\n"));
         if (!RTC.chipPresent()) disabled = true; //don't waste time if H/W error
       }
     }
 
     void loop() {
-      if (disabled || strip.isUpdating()) return;
+      if (disabled) return;
       if (toki.isTick()) {
         time_t t = toki.second();
-        if (t != RTC.get()) RTC.set(t); //set RTC to NTP/UI-provided value
+        if (t != RTC.get())
+        {
+            RTC.set(t); //set RTC to NTP/UI-provided value
+            DEBUG_PRINTF_P(PSTR("RTC time set to: %u\n"), (unsigned)t);
+        }
       }
     }
 
