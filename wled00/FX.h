@@ -420,6 +420,16 @@ typedef struct Segment {
     uint16_t        _dataLen;
     static uint16_t _usedSegmentData;
 
+    // Cloxel: offscreen pixel buffer (physical segment pixels, without opacity applied), nullptr if not offscreen.
+    // An offscreen segment renders into this buffer instead of the LEDs; WS2812FX::show() blends all
+    // offscreen segments onto the LEDs using their opacity (similar to the segment layers of WLED 0.16).
+    uint32_t       *_offscreen;
+    uint16_t        _offscreenLen;
+    void            setRawPixelXY(int x, int y, uint32_t c);   // x,y are physical pixels relative to the segment
+    uint32_t        getRawPixelXY(int x, int y) const;
+    void            setRawPixel(unsigned i, uint32_t c);       // i is an absolute strip index (1D)
+    uint32_t        getRawPixel(unsigned i) const;
+
     // perhaps this should be per segment, not static
     static CRGBPalette16 _currentPalette;     // palette used for current effect (includes transition, used in color_from_palette())
     static CRGBPalette16 _randomPalette;      // actual random palette
@@ -485,6 +495,8 @@ typedef struct Segment {
       data(nullptr),
       _capabilities(0),
       _dataLen(0),
+      _offscreen(nullptr),
+      _offscreenLen(0),
       _t(nullptr)
     {
       #ifdef WLED_DEBUG
@@ -510,6 +522,7 @@ typedef struct Segment {
       if (name) { delete[] name; name = nullptr; }
       stopTransition();
       deallocateData();
+      free(_offscreen);
     }
 
     Segment& operator= (const Segment &orig); // copy assignment
@@ -563,6 +576,11 @@ typedef struct Segment {
       * Safe to call from interrupts and network requests.
       */
     inline void markForReset() { reset = true; }  // setOption(SEG_OPTION_RESET, true)
+
+    // Cloxel: offscreen rendering (own pixel buffer, blended onto the LEDs with opacity in WS2812FX::show())
+    bool setOffscreen(bool enable);                              // returns false if the buffer could not be allocated
+    inline bool isOffscreen() const { return _offscreen != nullptr; }
+    void blendOffscreen() const;                                 // blends the buffer onto the LEDs using opacity
 
     // transition functions
     void     startTransition(uint16_t dur);     // transition has to start before actual segment values change
@@ -750,6 +768,7 @@ class WS2812FX {  // 96 bytes
       customMappingTable(nullptr),
       customMappingSize(0),
       _lastShow(0),
+      _lastServiceShow(0),
       _segment_index(0),
       _mainSegment(0)
     {
@@ -961,6 +980,7 @@ class WS2812FX {  // 96 bytes
     uint16_t  customMappingSize;
 
     unsigned long _lastShow;
+    unsigned long _lastServiceShow; // Cloxel: last show() by service(), so extra show() calls (e.g. from usermods) do not block effects (as in WLED 0.16)
 
     uint8_t _segment_index;
     uint8_t _mainSegment;

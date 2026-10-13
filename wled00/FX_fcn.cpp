@@ -102,8 +102,11 @@ Segment::Segment(const Segment &orig) {
   name = nullptr;
   data = nullptr;
   _dataLen = 0;
+  _offscreen = nullptr;
+  _offscreenLen = 0;
   if (orig.name) { name = new char[strlen(orig.name)+1]; if (name) strcpy(name, orig.name); }
   if (orig.data) { if (allocateData(orig._dataLen)) memcpy(data, orig.data, orig._dataLen); }
+  if (orig._offscreen) { _offscreen = (uint32_t*)malloc(orig._offscreenLen * sizeof(uint32_t)); if (_offscreen) { _offscreenLen = orig._offscreenLen; memcpy(_offscreen, orig._offscreen, _offscreenLen * sizeof(uint32_t)); } }
 }
 
 // move constructor
@@ -114,6 +117,8 @@ Segment::Segment(Segment &&orig) noexcept {
   orig.name = nullptr;
   orig.data = nullptr;
   orig._dataLen = 0;
+  orig._offscreen = nullptr;
+  orig._offscreenLen = 0;
 }
 
 // copy assignment
@@ -124,14 +129,18 @@ Segment& Segment::operator= (const Segment &orig) {
     if (name) { delete[] name; name = nullptr; }
     stopTransition();
     deallocateData();
+    free(_offscreen);
     // copy source
     memcpy((void*)this, (void*)&orig, sizeof(Segment));
     // erase pointers to allocated data
     data = nullptr;
     _dataLen = 0;
+    _offscreen = nullptr;
+    _offscreenLen = 0;
     // copy source data
     if (orig.name) { name = new char[strlen(orig.name)+1]; if (name) strcpy(name, orig.name); }
     if (orig.data) { if (allocateData(orig._dataLen)) memcpy(data, orig.data, orig._dataLen); }
+    if (orig._offscreen) { _offscreen = (uint32_t*)malloc(orig._offscreenLen * sizeof(uint32_t)); if (_offscreen) { _offscreenLen = orig._offscreenLen; memcpy(_offscreen, orig._offscreen, _offscreenLen * sizeof(uint32_t)); } }
   }
   return *this;
 }
@@ -143,10 +152,13 @@ Segment& Segment::operator= (Segment &&orig) noexcept {
     if (name) { delete[] name; name = nullptr; } // free old name
     stopTransition();
     deallocateData(); // free old runtime data
+    free(_offscreen); // free old offscreen buffer
     memcpy((void*)this, (void*)&orig, sizeof(Segment));
     orig.name = nullptr;
     orig.data = nullptr;
     orig._dataLen = 0;
+    orig._offscreen = nullptr;
+    orig._offscreenLen = 0;
     orig._t   = nullptr; // old segment cannot be in transition
   }
   return *this;
@@ -519,6 +531,7 @@ void Segment::setUp(uint16_t i1, uint16_t i2, uint8_t grp, uint8_t spc, uint16_t
     stop = 0;
     return;
   }
+  if (_offscreen) setOffscreen(true); // Cloxel: resize offscreen buffer to the new bounds
   refreshLightCapabilities();
 }
 
@@ -824,7 +837,7 @@ void IRAM_ATTR_YN Segment::setPixelColor(int i, uint32_t col)
 
   unsigned len = length();
   uint8_t _bri_t = currentBri();
-  if (_bri_t < 255) {
+  if (_bri_t < 255 && !_offscreen) { // offscreen: opacity is applied in blendOffscreen()
     col = color_fade(col, _bri_t);
   }
 
@@ -849,16 +862,16 @@ void IRAM_ATTR_YN Segment::setPixelColor(int i, uint32_t col)
         indexMir += offset; // offset/phase
         if (indexMir >= stop) indexMir -= len; // wrap
 #ifndef WLED_DISABLE_MODE_BLEND
-        if (_modeBlend) tmpCol = color_blend(strip.getPixelColor(indexMir), col, 0xFFFFU - progress(), true);
+        if (_modeBlend) tmpCol = color_blend(getRawPixel(indexMir), col, 0xFFFFU - progress(), true);
 #endif
-        strip.setPixelColor(indexMir, tmpCol);
+        setRawPixel(indexMir, tmpCol);
       }
       indexSet += offset; // offset/phase
       if (indexSet >= stop) indexSet -= len; // wrap
 #ifndef WLED_DISABLE_MODE_BLEND
-      if (_modeBlend) tmpCol = color_blend(strip.getPixelColor(indexSet), col, 0xFFFFU - progress(), true);
+      if (_modeBlend) tmpCol = color_blend(getRawPixel(indexSet), col, 0xFFFFU - progress(), true);
 #endif
-      strip.setPixelColor(indexSet, tmpCol);
+      setRawPixel(indexSet, tmpCol);
     }
   }
 }
@@ -967,7 +980,77 @@ uint32_t IRAM_ATTR_YN Segment::getPixelColor(int i) const
   // offset/phase
   i += offset;
   if (i >= stop) i -= length();
+  return getRawPixel(i);
+}
+
+// Cloxel: offscreen rendering, see FX.h
+bool Segment::setOffscreen(bool enable) {
+  if (!enable) {
+    free(_offscreen);
+    _offscreen = nullptr;
+    _offscreenLen = 0;
+    return true;
+  }
+  size_t len = isActive() ? length() : 0;
+  if (len == 0) return false;
+  if (_offscreen && _offscreenLen == len) return true;
+  uint32_t *buf = (uint32_t*)realloc(_offscreen, len * sizeof(uint32_t));
+  if (!buf) {
+    DEBUG_PRINTLN(F("!!! Not enough memory for offscreen segment buffer !!!"));
+    return false;
+  }
+  _offscreen = buf;
+  _offscreenLen = len;
+  memset(_offscreen, 0, len * sizeof(uint32_t));
+  return true;
+}
+
+void IRAM_ATTR_YN Segment::setRawPixelXY(int x, int y, uint32_t c) {
+  if (_offscreen) {
+    unsigned idx = y * width() + x;
+    if (idx < _offscreenLen) _offscreen[idx] = c;
+  } else strip.setPixelColorXY(start + x, startY + y, c);
+}
+
+uint32_t IRAM_ATTR_YN Segment::getRawPixelXY(int x, int y) const {
+  if (_offscreen) {
+    unsigned idx = y * width() + x;
+    return idx < _offscreenLen ? _offscreen[idx] : 0;
+  }
+  return strip.getPixelColorXY(start + x, startY + y);
+}
+
+void IRAM_ATTR_YN Segment::setRawPixel(unsigned i, uint32_t c) {
+  if (_offscreen) {
+    if (i >= start && i - start < _offscreenLen) _offscreen[i - start] = c;
+  } else strip.setPixelColor(i, c);
+}
+
+uint32_t IRAM_ATTR_YN Segment::getRawPixel(unsigned i) const {
+  if (_offscreen) return (i >= start && i - start < _offscreenLen) ? _offscreen[i - start] : 0;
   return strip.getPixelColor(i);
+}
+
+void Segment::blendOffscreen() const {
+  if (!_offscreen || !isActive()) return;
+  uint8_t bri = currentBri(); // opacity, including on/off and transitions
+  if (bri == 0) return;
+  const unsigned W = width(), H = height();
+  const bool twoD = is2D();
+  for (unsigned y = 0; y < H; y++) {
+    for (unsigned x = 0; x < W; x++) {
+      unsigned idx = y * W + x;
+      if (idx >= _offscreenLen) return;
+      uint32_t c = _offscreen[idx];
+      if (twoD) {
+        if (bri < 255) c = color_blend(strip.getPixelColorXY(start + x, startY + y), c, bri);
+        strip.setPixelColorXY(start + x, startY + y, c);
+      } else {
+        if (bri < 255) c = color_blend(strip.getPixelColor(start + idx), c, bri);
+        strip.setPixelColor(start + idx, c);
+      }
+    }
+  }
 }
 
 uint8_t Segment::differs(Segment& b) const {
@@ -1331,7 +1414,7 @@ void WS2812FX::finalizeInit() {
 void WS2812FX::service() {
   unsigned long nowUp = millis(); // Be aware, millis() rolls over every 49 days
   now = nowUp + timebase;
-  if (nowUp - _lastShow < MIN_SHOW_DELAY || _suspend) return;
+  if (nowUp - _lastServiceShow < MIN_SHOW_DELAY || _suspend) return; // Cloxel: was _lastShow, see FX.h
   bool doShow = false;
 
   _isServicing = true;
@@ -1403,6 +1486,7 @@ void WS2812FX::service() {
   if (doShow) {
     yield();
     Segment::handleRandomPalette(); // slowly transition random palette; move it into for loop when each segment has individual random palette
+    _lastServiceShow = millis();
     show();
   }
   #ifdef WLED_DEBUG
@@ -1423,6 +1507,17 @@ uint32_t IRAM_ATTR WS2812FX::getPixelColor(uint16_t i) const {
 }
 
 void WS2812FX::show() {
+  // Cloxel: compose offscreen segments onto the LEDs (rebuilt on every show(), so repeated calls give the same result)
+  bool hasOffscreen = false;
+  for (const Segment &seg : _segments) if (seg.isOffscreen()) { hasOffscreen = true; break; }
+  if (hasOffscreen) {
+    for (const Segment &seg : _segments) if (seg.isOffscreen() && seg.isActive()) { // clear the area of all offscreen segments
+      for (int y = seg.startY; y < seg.stopY; y++) for (int x = seg.start; x < seg.stop; x++)
+        if (seg.is2D()) setPixelColorXY(x, y, BLACK); else setPixelColor((unsigned)x, BLACK);
+    }
+    for (const Segment &seg : _segments) seg.blendOffscreen(); // blend in segment order (later segments on top)
+  }
+
   // avoid race condition, capture _callback value
   show_callback callback = _callback;
   if (callback) callback();

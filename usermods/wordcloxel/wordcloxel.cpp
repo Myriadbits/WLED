@@ -136,9 +136,15 @@ void WordCloxel::setupEffects()
     seg0.stop = 15;
     seg0.stop = 16;
     seg0.refreshLightCapabilities();
-        
+
     // Yes, the following call makes sure the palette is used for segment 1
-    seg1.refreshLightCapabilities();    
+    seg1.refreshLightCapabilities();
+
+    // WLED 0.15 has no segment layers: both segments render into their own (offscreen) buffer,
+    // like the segment buffers of WLED 0.16, so seg.getPixelColor() returns the effect colors
+    // and opacity is applied when the segments are blended onto the LEDs (see Segment::setOffscreen())
+    if (!seg0.setOffscreen(true) || !seg1.setOffscreen(true))
+        BLECONFIG_LOG("Offscreen segment buffers could not be allocated!");
 }
 
 /* 

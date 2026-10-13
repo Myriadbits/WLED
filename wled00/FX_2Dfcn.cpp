@@ -174,7 +174,7 @@ void IRAM_ATTR_YN Segment::setPixelColorXY(int x, int y, uint32_t col)
   if (x >= virtualWidth() || y >= virtualHeight() || x<0 || y<0) return;  // if pixel would fall out of virtual segment just exit
 
   uint8_t _bri_t = currentBri();
-  if (_bri_t < 255) {
+  if (_bri_t < 255 && !_offscreen) { // offscreen: opacity is applied in blendOffscreen()
     col = color_fade(col, _bri_t);
   }
 
@@ -197,21 +197,21 @@ void IRAM_ATTR_YN Segment::setPixelColorXY(int x, int y, uint32_t col)
 
 #ifndef WLED_DISABLE_MODE_BLEND
       // if blending modes, blend with underlying pixel
-      if (_modeBlend) tmpCol = color_blend(strip.getPixelColorXY(start + xX, startY + yY), col, 0xFFFFU - progress(), true);
+      if (_modeBlend) tmpCol = color_blend(getRawPixelXY(xX, yY), col, 0xFFFFU - progress(), true);
 #endif
 
-      strip.setPixelColorXY(start + xX, startY + yY, tmpCol);
+      setRawPixelXY(xX, yY, tmpCol);
 
       if (mirror) { //set the corresponding horizontally mirrored pixel
-        if (transpose) strip.setPixelColorXY(start + xX, startY + height() - yY - 1, tmpCol);
-        else           strip.setPixelColorXY(start + width() - xX - 1, startY + yY, tmpCol);
+        if (transpose) setRawPixelXY(xX, height() - yY - 1, tmpCol);
+        else           setRawPixelXY(width() - xX - 1, yY, tmpCol);
       }
       if (mirror_y) { //set the corresponding vertically mirrored pixel
-        if (transpose) strip.setPixelColorXY(start + width() - xX - 1, startY + yY, tmpCol);
-        else           strip.setPixelColorXY(start + xX, startY + height() - yY - 1, tmpCol);
+        if (transpose) setRawPixelXY(width() - xX - 1, yY, tmpCol);
+        else           setRawPixelXY(xX, height() - yY - 1, tmpCol);
       }
       if (mirror_y && mirror) { //set the corresponding vertically AND horizontally mirrored pixel
-        strip.setPixelColorXY(start + width() - xX - 1, startY + height() - yY - 1, tmpCol);
+        setRawPixelXY(width() - xX - 1, height() - yY - 1, tmpCol);
       }
     }
   }
@@ -273,7 +273,7 @@ uint32_t IRAM_ATTR_YN Segment::getPixelColorXY(int x, int y) const {
   x *= groupLength(); // expand to physical pixels
   y *= groupLength(); // expand to physical pixels
   if (x >= width() || y >= height()) return 0;
-  return strip.getPixelColorXY(start + x, startY + y);
+  return getRawPixelXY(x, y);
 }
 
 // blurRow: perform a blur on a row of a rectangular matrix
